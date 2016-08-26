@@ -19,5 +19,8 @@ int main(){
     if (instance.vkCreateInstance != nullptr){
         std::cout << "vkCreateInstance function found!" << std::endl;
     }
+
+    // Set up instance variables and functions
+    instance.setupDevice(0);
     return true;
 }

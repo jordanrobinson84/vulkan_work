@@ -16,9 +16,10 @@
 typedef VkQueueFamilyProperties * VkQueueFamilyPropertiesPtr;
 
 struct VulkanDevice{
-    // VulkanDevice();
+    VulkanDevice() : created(false);
 
     VkDevice *device;
+    bool created;
 
     VK_DEVICE_FUNCTION(vkDeviceWaitIdle);
     VK_DEVICE_FUNCTION(vkEnumerateDeviceLayerProperties);
@@ -29,13 +30,16 @@ struct VulkanDevice{
 class VulkanDriverInstance{
 public:
     VulkanDriverInstance(std::string applicationName);
+    ~VulkanDriverInstance();
     void enumeratePhysicalDevices();
+    void setupDevice(uint32_t deviceNumber);
 
     void *loader;
     // Instance variables
     VkInstance instance;
     uint32_t numPhysicalDevices;
     VkPhysicalDevice *physicalDevices;
+    VkPhysicalDeviceProperties *physicalDeviceProperties;
     VkQueueFamilyPropertiesPtr *physicalDeviceQueueProperties;
 
     // Device variables
