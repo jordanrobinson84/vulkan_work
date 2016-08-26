@@ -15,9 +15,21 @@
 
 typedef VkQueueFamilyProperties * VkQueueFamilyPropertiesPtr;
 
+struct VulkanDevice{
+    // VulkanDevice();
+
+    VkDevice *device;
+
+    VK_DEVICE_FUNCTION(vkDeviceWaitIdle);
+    VK_DEVICE_FUNCTION(vkEnumerateDeviceLayerProperties);
+    VK_DEVICE_FUNCTION(vkCreateImage);
+};
+
+
 class VulkanDriverInstance{
 public:
     VulkanDriverInstance(std::string applicationName);
+    void enumeratePhysicalDevices();
 
     void *loader;
     // Instance variables
@@ -27,19 +39,18 @@ public:
     VkQueueFamilyPropertiesPtr *physicalDeviceQueueProperties;
 
     // Device variables
-    VkDevice *devices;
+    VulkanDevice *devices;
 
     VK_EXPORTED_FUNCTION(vkGetInstanceProcAddr);
+    VK_EXPORTED_FUNCTION(vkGetDeviceProcAddr);
     VK_EXPORTED_FUNCTION(vkCreateInstance);
     VK_EXPORTED_FUNCTION(vkDestroyInstance);
     VK_INSTANCE_FUNCTION(vkEnumeratePhysicalDevices);
     VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceProperties);
     VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceQueueFamilyProperties);
     VK_INSTANCE_FUNCTION(vkEnumerateInstanceLayerProperties);
-    VK_DEVICE_FUNCTION(vkCreateDevice);
-    VK_DEVICE_FUNCTION(vkDeviceWaitIdle);
-    VK_DEVICE_FUNCTION(vkDestroyDevice);
-    VK_DEVICE_FUNCTION(vkEnumerateDeviceLayerProperties);
+    VK_INSTANCE_FUNCTION(vkCreateDevice);
+    VK_INSTANCE_FUNCTION(vkDestroyDevice);
 };
 
 #undef VK_EXPORTED_FUNCTION
