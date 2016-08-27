@@ -4,6 +4,7 @@
 #include <vulkan/vulkan.h>
 #include <vulkan/vk_platform.h>
 #include <vulkan/vk_sdk_platform.h>
+#include <vector>
 #include <iostream>
 #include <dlfcn.h> 
 
@@ -15,9 +16,10 @@
 typedef VkQueueFamilyProperties * VkQueueFamilyPropertiesPtr;
 
 struct VulkanDevice{
-    VulkanDevice() : created(false);
+    VulkanDevice() : created(false){};
 
-    VkDevice *device;
+    VkDevice device;
+    VkPhysicalDeviceMemoryProperties memoryProperties;
     bool created;
 
     VK_DEVICE_FUNCTION(vkAllocateCommandBuffers);
@@ -72,7 +74,7 @@ struct VulkanDevice{
     VK_DEVICE_FUNCTION(vkGetDeviceQueue);
     VK_DEVICE_FUNCTION(vkGetEventStatus);
     VK_DEVICE_FUNCTION(vkGetFenceStatus);
-    VK_DEVICE_FUNCTION(vkGetImageMemoryRequirement);
+    VK_DEVICE_FUNCTION(vkGetImageMemoryRequirements);
     VK_DEVICE_FUNCTION(vkGetImageSparseMemoryRequirements);
     VK_DEVICE_FUNCTION(vkGetImageSubresourceLayout);
     VK_DEVICE_FUNCTION(vkGetPipelineCacheData);
@@ -87,7 +89,7 @@ struct VulkanDevice{
     VK_DEVICE_FUNCTION(vkResetFences);
     VK_DEVICE_FUNCTION(vkSetEvent);
     VK_DEVICE_FUNCTION(vkUnmapMemory);
-    VK_DEVICE_FUNCTION(vkUpdateDescriptorStates);
+    VK_DEVICE_FUNCTION(vkUpdateDescriptorSets);
     VK_DEVICE_FUNCTION(vkWaitForFences);
 };
 
@@ -98,23 +100,25 @@ public:
     ~VulkanDriverInstance();
     void enumeratePhysicalDevices();
     void setupDevice(uint32_t deviceNumber);
+    VulkanDevice * getDevice(uint32_t deviceNumber);
 
     void *loader;
     // Instance variables
     VkInstance instance;
     uint32_t numPhysicalDevices;
-    VkPhysicalDevice *physicalDevices;
-    VkPhysicalDeviceProperties *physicalDeviceProperties;
-    VkQueueFamilyPropertiesPtr *physicalDeviceQueueProperties;
+    std::vector<VkPhysicalDevice> physicalDevices;
+    std::vector<VkPhysicalDeviceProperties> physicalDeviceProperties;
+    std::vector<VkQueueFamilyPropertiesPtr> physicalDeviceQueueProperties;
 
     // Device variables
-    VulkanDevice *devices;
+    std::vector<VulkanDevice> devices;
 
     VK_EXPORTED_FUNCTION(vkGetInstanceProcAddr);
     VK_EXPORTED_FUNCTION(vkGetDeviceProcAddr);
     VK_EXPORTED_FUNCTION(vkCreateInstance);
     VK_EXPORTED_FUNCTION(vkDestroyInstance);
     VK_INSTANCE_FUNCTION(vkEnumeratePhysicalDevices);
+    VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceMemoryProperties);
     VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceProperties);
     VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceQueueFamilyProperties);
     VK_INSTANCE_FUNCTION(vkEnumerateInstanceLayerProperties);

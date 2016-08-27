@@ -4,7 +4,7 @@
 #define VK_EXPORTED_FUNCTION(function) function = (PFN_##function)dlsym(loader, #function); assert( function != nullptr)
 #define VK_GLOBAL_FUNCTION(function) PFN_##function function
 #define VK_INSTANCE_FUNCTION(function) function = (PFN_##function)( vkGetInstanceProcAddr( instance, #function)); assert( function != nullptr)
-#define VK_DEVICE_FUNCTION(function, deviceNumber) devices[deviceNumber].function = (PFN_##function)( vkGetDeviceProcAddr( *devices[deviceNumber].device, #function)); assert( devices[deviceNumber].function != nullptr)
+#define VK_DEVICE_FUNCTION(function, deviceNumber) devices[deviceNumber].function = (PFN_##function)( vkGetDeviceProcAddr( devices[deviceNumber].device, #function)); assert( devices[deviceNumber].function != nullptr)
 
 VulkanDriverInstance::VulkanDriverInstance(std::string applicationName){
     // OS not used yet
@@ -15,10 +15,10 @@ VulkanDriverInstance::VulkanDriverInstance(std::string applicationName){
     vkCreateInstance                            = nullptr;
 
     // Instance variables and functions
-    numPhysicalDevices                          = -1;
-    physicalDevices                             = nullptr;
-    physicalDeviceQueueProperties               = nullptr;
-    devices                                     = nullptr;
+    numPhysicalDevices                          = 0;
+    // physicalDevices                             = nullptr;
+    // physicalDeviceQueueProperties               = nullptr;
+    // devices                                     = nullptr;
     vkGetPhysicalDeviceProperties               = nullptr;
     vkGetPhysicalDeviceQueueFamilyProperties    = nullptr;
     vkCreateDevice                              = nullptr;
@@ -28,10 +28,10 @@ VulkanDriverInstance::VulkanDriverInstance(std::string applicationName){
     loader = dlopen( "libvulkan.so", RTLD_NOW);
 
     if (loader != nullptr){
-        VK_EXPORTED_FUNCTION(vkGetInstanceProcAddr, devices[deviceNumber]);
-        VK_EXPORTED_FUNCTION(vkGetDeviceProcAddr, devices[deviceNumber]);
-        VK_EXPORTED_FUNCTION(vkCreateInstance, devices[deviceNumber]);
-        VK_EXPORTED_FUNCTION(vkDestroyInstance, devices[deviceNumber]);
+        VK_EXPORTED_FUNCTION(vkGetInstanceProcAddr);
+        VK_EXPORTED_FUNCTION(vkGetDeviceProcAddr);
+        VK_EXPORTED_FUNCTION(vkCreateInstance);
+        VK_EXPORTED_FUNCTION(vkDestroyInstance);
 
 
         // Create the instance
@@ -59,12 +59,13 @@ VulkanDriverInstance::VulkanDriverInstance(std::string applicationName){
         assert (vkCreateInstance(&instanceCreateInfo, NULL, &instance) == VK_SUCCESS);
 
         // Enumerate instance function pointers
-        VK_INSTANCE_FUNCTION(vkEnumeratePhysicalDevices, devices[deviceNumber]);
-        VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceProperties, devices[deviceNumber]);
-        VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceQueueFamilyProperties, devices[deviceNumber]);
-        VK_INSTANCE_FUNCTION(vkCreateDevice, devices[deviceNumber]);
-        VK_INSTANCE_FUNCTION(vkDestroyDevice, devices[deviceNumber]);
-        // VK_INSTANCE_FUNCTION(vkEnumerateInstanceLayerProperties, devices[deviceNumber]);
+        VK_INSTANCE_FUNCTION(vkEnumeratePhysicalDevices);
+        VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceMemoryProperties);
+        VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceProperties);
+        VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceQueueFamilyProperties);
+        VK_INSTANCE_FUNCTION(vkCreateDevice);
+        VK_INSTANCE_FUNCTION(vkDestroyDevice);
+        // VK_INSTANCE_FUNCTION(vkEnumerateInstanceLayerProperties);
 
         enumeratePhysicalDevices();
     }
@@ -74,9 +75,8 @@ VulkanDriverInstance::~VulkanDriverInstance(){
     // Destroy Devices
     for (auto deviceObject : devices){
         if (deviceObject.created){
-            assert (vkDestroyDevice(physicalDevice, &creationInfo, nullptr, deviceObject.device) == VK_SUCCESS);
+            vkDestroyDevice(deviceObject.device, nullptr);
             deviceObject.created = false;
-            delete deviceObject.device;
         }
     }
 
@@ -87,15 +87,15 @@ VulkanDriverInstance::~VulkanDriverInstance(){
         }
     }
     // Destroy Physical Device Queue Properties
-    delete[] physicalDeviceQueueProperties;
+    physicalDeviceQueueProperties.clear();
     // Destroy Physical Device Properties
-    delete[] physicalDeviceProperties;
+    physicalDeviceProperties.clear();
     // Destroy Physical Device
-    delete[] physicalDevices;
+    physicalDevices.clear();
 
     // Remove loader
+    assert(dlclose(loader) == 0);
     loader = nullptr;
-    assert(dlclose("libvulkan.so") == 0);
 }
 
 void VulkanDriverInstance::enumeratePhysicalDevices(){
@@ -103,12 +103,12 @@ void VulkanDriverInstance::enumeratePhysicalDevices(){
 
     // Enumerate Physical Devices
     assert (vkEnumeratePhysicalDevices(instance, &numPhysicalDevices, nullptr) == VK_SUCCESS);
-    physicalDevices = new VkPhysicalDevice[numPhysicalDevices];
-    devices = new VulkanDevice[numPhysicalDevices];
-    physicalDeviceProperties = new VkPhysicalDeviceProperties[numPhysicalDevices];
-    physicalDeviceQueueProperties = new VkQueueFamilyPropertiesPtr[numPhysicalDevices];
+    physicalDevices = std::vector<VkPhysicalDevice>(numPhysicalDevices);
+    devices = std::vector<VulkanDevice>(numPhysicalDevices);
+    physicalDeviceProperties = std::vector<VkPhysicalDeviceProperties>(numPhysicalDevices);
+    physicalDeviceQueueProperties = std::vector<VkQueueFamilyPropertiesPtr>(numPhysicalDevices);
     std::cout << "Found " << numPhysicalDevices << " Physical Device(s): " << std::endl;
-    assert (vkEnumeratePhysicalDevices(instance, &numPhysicalDevices, physicalDevices) == VK_SUCCESS);
+    assert (vkEnumeratePhysicalDevices(instance, &numPhysicalDevices, physicalDevices.data()) == VK_SUCCESS);
     std::cout << "Physical Devices: " << std::endl;
     for (uint32_t dev = 0; dev < numPhysicalDevices; dev++){
         // Get Properties
@@ -147,7 +147,7 @@ void VulkanDriverInstance::setupDevice(uint32_t deviceNumber){
     assert (deviceNumber >= 0 && deviceNumber < numPhysicalDevices);
 
     // Create device
-    devices[deviceNumber].device = new VkDevice();
+    devices[deviceNumber].device = VkDevice();
 
     // Device Queue Create Info
     VkDeviceQueueCreateInfo queueInfo;
@@ -176,7 +176,50 @@ void VulkanDriverInstance::setupDevice(uint32_t deviceNumber){
     creationInfo.pEnabledFeatures = nullptr;
 
     // Create Device
-    assert (vkCreateDevice(physicalDevice, &creationInfo, nullptr, devices[deviceNumber].device) == VK_SUCCESS);
+    assert (vkCreateDevice(physicalDevices[deviceNumber], &creationInfo, nullptr, &devices[deviceNumber].device) == VK_SUCCESS);
+
+    // Get Memory Properties
+    vkGetPhysicalDeviceMemoryProperties(physicalDevices[deviceNumber], &devices[deviceNumber].memoryProperties);
+
+    // Print Memory Properties
+    std::cout << "Memory Properties for Device " << deviceNumber << ": " << std::endl;
+    std::cout << "   Memory Types: " << std::endl;
+    for (uint32_t memoryTypeIndex = 0; memoryTypeIndex < devices[deviceNumber].memoryProperties.memoryTypeCount; memoryTypeIndex++){
+        VkMemoryType memoryType = devices[deviceNumber].memoryProperties.memoryTypes[memoryTypeIndex];
+        std::string properties = "\n         Heap Index ";
+        properties += memoryType.heapIndex;
+        properties += "\n         ";
+        uint32_t propertyBits[] = { VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 
+                                    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, 
+                                    VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 
+                                    VK_MEMORY_PROPERTY_HOST_CACHED_BIT, 
+                                    VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT};
+
+        std::string propertyBitStrings[] = {"VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT", 
+                                            "VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT", 
+                                            "VK_MEMORY_PROPERTY_HOST_COHERENT_BIT", 
+                                            "VK_MEMORY_PROPERTY_HOST_CACHED_BIT", 
+                                            "VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT"};
+
+        int propertyIndex = 0;
+        bool firstProperty = true;
+        for (auto property : propertyBits){
+            if ((property & memoryType.propertyFlags) == 0){
+                properties = firstProperty ? properties : properties + ",\n         ";
+                firstProperty = false;
+                properties += propertyBitStrings[propertyIndex];
+            }
+            propertyIndex++;
+        }
+
+        std::cout << "      Memory Type " << memoryTypeIndex << ": " << properties << std::endl;
+    }
+
+    std::cout << "   Memory Heaps: " << std::endl;
+    for (uint32_t memoryHeapIndex = 0; memoryHeapIndex < devices[deviceNumber].memoryProperties.memoryHeapCount; memoryHeapIndex++){
+        VkMemoryHeap memoryHeap = devices[deviceNumber].memoryProperties.memoryHeaps[memoryHeapIndex];
+        std::cout << "      Memory Heap " << memoryHeapIndex << ": " << memoryHeap.size << std::endl;
+    }
 
     /***********************************************************
      * Enumerate Device Function Pointers
@@ -241,7 +284,7 @@ void VulkanDriverInstance::setupDevice(uint32_t deviceNumber){
     VK_DEVICE_FUNCTION(vkGetDeviceQueue, deviceNumber);
     VK_DEVICE_FUNCTION(vkGetEventStatus, deviceNumber);
     VK_DEVICE_FUNCTION(vkGetFenceStatus, deviceNumber);
-    VK_DEVICE_FUNCTION(vkGetImageMemoryRequirement, deviceNumber);
+    VK_DEVICE_FUNCTION(vkGetImageMemoryRequirements, deviceNumber);
     VK_DEVICE_FUNCTION(vkGetImageSparseMemoryRequirements, deviceNumber);
     VK_DEVICE_FUNCTION(vkGetImageSubresourceLayout, deviceNumber);
     VK_DEVICE_FUNCTION(vkGetPipelineCacheData, deviceNumber);
@@ -260,9 +303,20 @@ void VulkanDriverInstance::setupDevice(uint32_t deviceNumber){
 
     VK_DEVICE_FUNCTION(vkSetEvent, deviceNumber);
     VK_DEVICE_FUNCTION(vkUnmapMemory, deviceNumber);
-    VK_DEVICE_FUNCTION(vkUpdateDescriptorStates, deviceNumber);
+    VK_DEVICE_FUNCTION(vkUpdateDescriptorSets, deviceNumber);
     VK_DEVICE_FUNCTION(vkWaitForFences, deviceNumber);
 
     // Set created flag
     devices[deviceNumber].created = true;
+}
+
+VulkanDevice * VulkanDriverInstance::getDevice(uint32_t deviceNumber){
+    assert (deviceNumber >= 0 && deviceNumber < numPhysicalDevices);
+
+    // Set up if it hasn't already been done
+    if (!devices[deviceNumber].created){
+        setupDevice(deviceNumber);
+    }
+
+    return &devices[deviceNumber];
 }
