@@ -4,7 +4,7 @@
 #define VK_EXPORTED_FUNCTION(function) function = (PFN_##function)dlsym(loader, #function); assert( function != nullptr)
 #define VK_GLOBAL_FUNCTION(function) PFN_##function function
 #define VK_INSTANCE_FUNCTION(function) function = (PFN_##function)( vkGetInstanceProcAddr( instance, #function)); assert( function != nullptr)
-#define VK_DEVICE_FUNCTION(function, deviceObject) deviceObject.function = (PFN_##function)( vkGetDeviceProcAddr( *deviceObject.device, #function)); assert( deviceObject.function != nullptr)
+#define VK_DEVICE_FUNCTION(function, deviceNumber) devices[deviceNumber].function = (PFN_##function)( vkGetDeviceProcAddr( *devices[deviceNumber].device, #function)); assert( devices[deviceNumber].function != nullptr)
 
 VulkanDriverInstance::VulkanDriverInstance(std::string applicationName){
     // OS not used yet
@@ -25,17 +25,13 @@ VulkanDriverInstance::VulkanDriverInstance(std::string applicationName){
     vkDestroyDevice                             = nullptr;
     vkEnumerateInstanceLayerProperties          = nullptr;
 
-    // Device variables and functions
-    // vkDeviceWaitIdle                            = nullptr;
-    // vkEnumerateDeviceLayerProperties            = nullptr;
-
     loader = dlopen( "libvulkan.so", RTLD_NOW);
 
     if (loader != nullptr){
-        VK_EXPORTED_FUNCTION(vkGetInstanceProcAddr);
-        VK_EXPORTED_FUNCTION(vkGetDeviceProcAddr);
-        VK_EXPORTED_FUNCTION(vkCreateInstance);
-        VK_EXPORTED_FUNCTION(vkDestroyInstance);
+        VK_EXPORTED_FUNCTION(vkGetInstanceProcAddr, devices[deviceNumber]);
+        VK_EXPORTED_FUNCTION(vkGetDeviceProcAddr, devices[deviceNumber]);
+        VK_EXPORTED_FUNCTION(vkCreateInstance, devices[deviceNumber]);
+        VK_EXPORTED_FUNCTION(vkDestroyInstance, devices[deviceNumber]);
 
 
         // Create the instance
@@ -63,12 +59,12 @@ VulkanDriverInstance::VulkanDriverInstance(std::string applicationName){
         assert (vkCreateInstance(&instanceCreateInfo, NULL, &instance) == VK_SUCCESS);
 
         // Enumerate instance function pointers
-        VK_INSTANCE_FUNCTION(vkEnumeratePhysicalDevices);
-        VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceProperties);
-        VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceQueueFamilyProperties);
-        VK_INSTANCE_FUNCTION(vkCreateDevice);
-        VK_INSTANCE_FUNCTION(vkDestroyDevice);
-        // VK_INSTANCE_FUNCTION(vkEnumerateInstanceLayerProperties);
+        VK_INSTANCE_FUNCTION(vkEnumeratePhysicalDevices, devices[deviceNumber]);
+        VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceProperties, devices[deviceNumber]);
+        VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceQueueFamilyProperties, devices[deviceNumber]);
+        VK_INSTANCE_FUNCTION(vkCreateDevice, devices[deviceNumber]);
+        VK_INSTANCE_FUNCTION(vkDestroyDevice, devices[deviceNumber]);
+        // VK_INSTANCE_FUNCTION(vkEnumerateInstanceLayerProperties, devices[deviceNumber]);
 
         enumeratePhysicalDevices();
     }
@@ -80,6 +76,7 @@ VulkanDriverInstance::~VulkanDriverInstance(){
         if (deviceObject.created){
             assert (vkDestroyDevice(physicalDevice, &creationInfo, nullptr, deviceObject.device) == VK_SUCCESS);
             deviceObject.created = false;
+            delete deviceObject.device;
         }
     }
 
@@ -178,13 +175,93 @@ void VulkanDriverInstance::setupDevice(uint32_t deviceNumber){
     creationInfo.ppEnabledExtensionNames = nullptr;
     creationInfo.pEnabledFeatures = nullptr;
 
-    // Enumerate Device
+    // Create Device
     assert (vkCreateDevice(physicalDevice, &creationInfo, nullptr, devices[deviceNumber].device) == VK_SUCCESS);
 
-    // Enumerate Device Function Pointers
-    VK_DEVICE_FUNCTION(vkDeviceWaitIdle, devices[deviceNumber]);
-    VK_DEVICE_FUNCTION(vkCreateImage, devices[deviceNumber]);
-    // VK_DEVICE_FUNCTION(vkEnumerateDeviceLayerProperties, devices[deviceNumber]);
+    /***********************************************************
+     * Enumerate Device Function Pointers
+     ***********************************************************/
+    VK_DEVICE_FUNCTION(vkAllocateCommandBuffers, deviceNumber);
+    VK_DEVICE_FUNCTION(vkAllocateDescriptorSets, deviceNumber);
+    VK_DEVICE_FUNCTION(vkAllocateMemory, deviceNumber);
+    VK_DEVICE_FUNCTION(vkBindBufferMemory, deviceNumber);
+    VK_DEVICE_FUNCTION(vkBindImageMemory, deviceNumber);
+    // Creation
+    VK_DEVICE_FUNCTION(vkCreateBuffer, deviceNumber);
+    VK_DEVICE_FUNCTION(vkCreateBufferView, deviceNumber);
+    VK_DEVICE_FUNCTION(vkCreateCommandPool, deviceNumber);
+    VK_DEVICE_FUNCTION(vkCreateComputePipelines, deviceNumber);
+    VK_DEVICE_FUNCTION(vkCreateDescriptorPool, deviceNumber);
+    VK_DEVICE_FUNCTION(vkCreateDescriptorSetLayout, deviceNumber);
+    VK_DEVICE_FUNCTION(vkCreateEvent, deviceNumber);
+    VK_DEVICE_FUNCTION(vkCreateFence, deviceNumber);
+    VK_DEVICE_FUNCTION(vkCreateFramebuffer, deviceNumber);
+    VK_DEVICE_FUNCTION(vkCreateGraphicsPipelines, deviceNumber);
+    VK_DEVICE_FUNCTION(vkCreateImage, deviceNumber);
+    VK_DEVICE_FUNCTION(vkCreateImageView, deviceNumber);
+    VK_DEVICE_FUNCTION(vkCreatePipelineCache, deviceNumber);
+    VK_DEVICE_FUNCTION(vkCreatePipelineLayout, deviceNumber);
+    VK_DEVICE_FUNCTION(vkCreateQueryPool, deviceNumber);
+    VK_DEVICE_FUNCTION(vkCreateRenderPass, deviceNumber);
+    VK_DEVICE_FUNCTION(vkCreateSampler, deviceNumber);
+    VK_DEVICE_FUNCTION(vkCreateSemaphore, deviceNumber);
+    VK_DEVICE_FUNCTION(vkCreateShaderModule, deviceNumber);
+
+    // Destruction
+    VK_DEVICE_FUNCTION(vkDestroyBuffer, deviceNumber);
+    VK_DEVICE_FUNCTION(vkDestroyBufferView, deviceNumber);
+    VK_DEVICE_FUNCTION(vkDestroyCommandPool, deviceNumber);
+    VK_DEVICE_FUNCTION(vkDestroyDescriptorPool, deviceNumber);
+    VK_DEVICE_FUNCTION(vkDestroyDescriptorSetLayout, deviceNumber);
+    VK_DEVICE_FUNCTION(vkDestroyEvent, deviceNumber);
+    VK_DEVICE_FUNCTION(vkDestroyFence, deviceNumber);
+    VK_DEVICE_FUNCTION(vkDestroyFramebuffer, deviceNumber);
+    VK_DEVICE_FUNCTION(vkDestroyImage, deviceNumber);
+    VK_DEVICE_FUNCTION(vkDestroyImageView, deviceNumber);
+    VK_DEVICE_FUNCTION(vkDestroyPipeline, deviceNumber);
+    VK_DEVICE_FUNCTION(vkDestroyPipelineCache, deviceNumber);
+    VK_DEVICE_FUNCTION(vkDestroyPipelineLayout, deviceNumber);
+    VK_DEVICE_FUNCTION(vkDestroyQueryPool, deviceNumber);
+    VK_DEVICE_FUNCTION(vkDestroyRenderPass, deviceNumber);
+    VK_DEVICE_FUNCTION(vkDestroySampler, deviceNumber);
+    VK_DEVICE_FUNCTION(vkDestroySemaphore, deviceNumber);
+    VK_DEVICE_FUNCTION(vkDestroyShaderModule, deviceNumber);
+
+    VK_DEVICE_FUNCTION(vkDeviceWaitIdle, deviceNumber);
+    VK_DEVICE_FUNCTION(vkFlushMappedMemoryRanges, deviceNumber);
+
+    // Free
+    VK_DEVICE_FUNCTION(vkFreeCommandBuffers, deviceNumber);
+    VK_DEVICE_FUNCTION(vkFreeDescriptorSets, deviceNumber);
+    VK_DEVICE_FUNCTION(vkFreeMemory, deviceNumber);
+
+    // Getters
+    VK_DEVICE_FUNCTION(vkGetBufferMemoryRequirements, deviceNumber);
+    VK_DEVICE_FUNCTION(vkGetDeviceMemoryCommitment, deviceNumber);
+    VK_DEVICE_FUNCTION(vkGetDeviceQueue, deviceNumber);
+    VK_DEVICE_FUNCTION(vkGetEventStatus, deviceNumber);
+    VK_DEVICE_FUNCTION(vkGetFenceStatus, deviceNumber);
+    VK_DEVICE_FUNCTION(vkGetImageMemoryRequirement, deviceNumber);
+    VK_DEVICE_FUNCTION(vkGetImageSparseMemoryRequirements, deviceNumber);
+    VK_DEVICE_FUNCTION(vkGetImageSubresourceLayout, deviceNumber);
+    VK_DEVICE_FUNCTION(vkGetPipelineCacheData, deviceNumber);
+    VK_DEVICE_FUNCTION(vkGetQueryPoolResults, deviceNumber);
+    VK_DEVICE_FUNCTION(vkGetRenderAreaGranularity, deviceNumber);
+
+    VK_DEVICE_FUNCTION(vkInvalidateMappedMemoryRanges, deviceNumber);
+    VK_DEVICE_FUNCTION(vkMapMemory, deviceNumber);
+    VK_DEVICE_FUNCTION(vkMergePipelineCaches, deviceNumber);
+
+    // Reset
+    VK_DEVICE_FUNCTION(vkResetCommandPool, deviceNumber);
+    VK_DEVICE_FUNCTION(vkResetDescriptorPool, deviceNumber);
+    VK_DEVICE_FUNCTION(vkResetEvent, deviceNumber);
+    VK_DEVICE_FUNCTION(vkResetFences, deviceNumber);
+
+    VK_DEVICE_FUNCTION(vkSetEvent, deviceNumber);
+    VK_DEVICE_FUNCTION(vkUnmapMemory, deviceNumber);
+    VK_DEVICE_FUNCTION(vkUpdateDescriptorStates, deviceNumber);
+    VK_DEVICE_FUNCTION(vkWaitForFences, deviceNumber);
 
     // Set created flag
     devices[deviceNumber].created = true;
