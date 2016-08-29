@@ -17,11 +17,19 @@ typedef VkQueueFamilyProperties * VkQueueFamilyPropertiesPtr;
 
 struct VulkanDevice{
     VulkanDevice() : created(false){};
+    int32_t getUsableMemoryType(uint32_t memoryTypeBits, const VkMemoryPropertyFlags requiredProperties);
 
     VkDevice device;
-    VkPhysicalDeviceMemoryProperties memoryProperties;
     bool created;
+    VkPhysicalDeviceFeatures deviceFeatures;
+    VkFormatProperties deviceFormatProperties;
+    VkImageFormatProperties deviceImageFormatProperties;
+    VkPhysicalDeviceMemoryProperties deviceMemoryProperties;
+    VkPhysicalDeviceProperties deviceProperties;
+    VkQueueFamilyPropertiesPtr deviceQueueProperties;
+    VkSparseImageFormatProperties deviceSparseImageFormatProperties;
 
+    // Device-level Function Pointers
     VK_DEVICE_FUNCTION(vkAllocateCommandBuffers);
     VK_DEVICE_FUNCTION(vkAllocateDescriptorSets);
     VK_DEVICE_FUNCTION(vkAllocateMemory);
@@ -98,32 +106,38 @@ class VulkanDriverInstance{
 public:
     VulkanDriverInstance(std::string applicationName);
     ~VulkanDriverInstance();
-    void enumeratePhysicalDevices();
-    void setupDevice(uint32_t deviceNumber);
-    VulkanDevice * getDevice(uint32_t deviceNumber);
+    void enumeratePhysicalDevices(bool debugPrint = true);
+    void setupDevice(uint32_t deviceNumber, bool debugPrint = true);
+    VulkanDevice * getDevice(uint32_t deviceNumber, bool debugPrint = true);
 
     void *loader;
     // Instance variables
     VkInstance instance;
     uint32_t numPhysicalDevices;
     std::vector<VkPhysicalDevice> physicalDevices;
-    std::vector<VkPhysicalDeviceProperties> physicalDeviceProperties;
-    std::vector<VkQueueFamilyPropertiesPtr> physicalDeviceQueueProperties;
 
     // Device variables
     std::vector<VulkanDevice> devices;
 
+    // Exported Function Pointers
     VK_EXPORTED_FUNCTION(vkGetInstanceProcAddr);
     VK_EXPORTED_FUNCTION(vkGetDeviceProcAddr);
     VK_EXPORTED_FUNCTION(vkCreateInstance);
     VK_EXPORTED_FUNCTION(vkDestroyInstance);
+
+    // Instance Function Pointers
+    VK_INSTANCE_FUNCTION(vkCreateDevice);
+    VK_INSTANCE_FUNCTION(vkDestroyDevice);
+    VK_INSTANCE_FUNCTION(vkEnumerateDeviceLayerProperties);
+    VK_INSTANCE_FUNCTION(vkEnumerateDeviceExtensionProperties);
     VK_INSTANCE_FUNCTION(vkEnumeratePhysicalDevices);
+    VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceFeatures);
+    VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceFormatProperties);
+    VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceImageFormatProperties);
     VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceMemoryProperties);
     VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceProperties);
     VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceQueueFamilyProperties);
-    VK_INSTANCE_FUNCTION(vkEnumerateInstanceLayerProperties);
-    VK_INSTANCE_FUNCTION(vkCreateDevice);
-    VK_INSTANCE_FUNCTION(vkDestroyDevice);
+    VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceSparseImageFormatProperties);
 };
 
 #undef VK_EXPORTED_FUNCTION
