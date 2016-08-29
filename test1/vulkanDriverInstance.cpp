@@ -6,11 +6,14 @@
 #define VK_INSTANCE_FUNCTION(function) function = (PFN_##function)( vkGetInstanceProcAddr( instance, #function)); assert( function != nullptr)
 #define VK_DEVICE_FUNCTION(function) devices[deviceNumber].function = (PFN_##function)( vkGetDeviceProcAddr( devices[deviceNumber].device, #function)); assert( devices[deviceNumber].function != nullptr)
 
+VulkanCommandPool * VulkanDevice::getCommandPool(VkCommandPoolCreateFlags flags, uint32_t queueFamilyIndex){
+    VulkanCommandPool * commandPool = new VulkanCommandPool(device, flags, queueFamilyIndex);
 
+    return commandPool;
+}
 
 int32_t VulkanDevice::getUsableMemoryType(uint32_t memoryTypeBits, const VkMemoryPropertyFlags requiredProperties){
     int32_t type = -1;
-
     uint32_t memoryTypeIndex = 0;
     while (type == -1 && memoryTypeIndex < deviceMemoryProperties.memoryTypeCount){
         if ((memoryTypeBits & 1 << memoryTypeIndex) != 0){
@@ -22,6 +25,21 @@ int32_t VulkanDevice::getUsableMemoryType(uint32_t memoryTypeBits, const VkMemor
     }
 
     return type;
+}
+
+int32_t VulkanDevice::getUsableDeviceQueue(const VkQueueFlags requiredProperties){
+    int32_t queueFamily = -1;
+    uint32_t queueFamilyIndex = 0;
+    while(queueFamilyIndex < deviceQueueFamilyPropertyCount && queueFamily == -1){
+        auto queueFamilyProperty = deviceQueueProperties[queueFamilyIndex];
+
+        if((requiredProperties & queueFamilyProperty.queueFlags) == requiredProperties){
+            queueFamily = queueFamilyIndex;
+        }
+        queueFamilyIndex++;
+    }
+
+    return queueFamily;
 }
 
 VulkanDriverInstance::VulkanDriverInstance(std::string applicationName){
@@ -149,17 +167,17 @@ void VulkanDriverInstance::setupDevice(uint32_t deviceNumber, bool debugPrint){
     }
 
     // Enumerate Physical Device Queue Family Properties
-    uint32_t queueFamilyPropertyCount = 0;
-    vkGetPhysicalDeviceQueueFamilyProperties(physicalDevices[deviceNumber], &queueFamilyPropertyCount, nullptr);
-    assert( queueFamilyPropertyCount != 0);
+    device.deviceQueueFamilyPropertyCount = 0;
+    vkGetPhysicalDeviceQueueFamilyProperties(physicalDevices[deviceNumber], &device.deviceQueueFamilyPropertyCount, nullptr);
+    assert( device.deviceQueueFamilyPropertyCount != 0);
 
     if (debugPrint){
-        std::cout << "      Found " << queueFamilyPropertyCount << " Queue Families: " << std::endl;
+        std::cout << "      Found " << device.deviceQueueFamilyPropertyCount << " Queue Families: " << std::endl;
     }
-    device.deviceQueueProperties = new VkQueueFamilyProperties[queueFamilyPropertyCount];
-    vkGetPhysicalDeviceQueueFamilyProperties(physicalDevices[deviceNumber], &queueFamilyPropertyCount, device.deviceQueueProperties);
+    device.deviceQueueProperties = new VkQueueFamilyProperties[device.deviceQueueFamilyPropertyCount];
+    vkGetPhysicalDeviceQueueFamilyProperties(physicalDevices[deviceNumber], &device.deviceQueueFamilyPropertyCount, device.deviceQueueProperties);
 
-    for (uint32_t queueFamily = 0; queueFamily < queueFamilyPropertyCount; queueFamily++){
+    for (uint32_t queueFamily = 0; queueFamily < device.deviceQueueFamilyPropertyCount; queueFamily++){
         auto queueFamilyProperties = device.deviceQueueProperties[queueFamily];
 
         if (debugPrint){
@@ -217,8 +235,8 @@ void VulkanDriverInstance::setupDevice(uint32_t deviceNumber, bool debugPrint){
     }
 
     // Device Queue Create Info
-    VkDeviceQueueCreateInfo queueInfo[queueFamilyPropertyCount];
-    for (uint32_t queueFamily = 0; queueFamily < queueFamilyPropertyCount; queueFamily++){
+    VkDeviceQueueCreateInfo queueInfo[device.deviceQueueFamilyPropertyCount];
+    for (uint32_t queueFamily = 0; queueFamily < device.deviceQueueFamilyPropertyCount; queueFamily++){
         auto queueFamilyProperties = device.deviceQueueProperties[queueFamily];
         
         queueInfo[queueFamily].sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;

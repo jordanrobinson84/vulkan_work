@@ -7,6 +7,8 @@
 #include <vector>
 #include <iostream>
 #include <dlfcn.h> 
+#include <cassert>
+#include "vulkanCommandPool.h"
 
 #define VK_EXPORTED_FUNCTION(function) PFN_##function function
 #define VK_GLOBAL_FUNCTION(function) PFN_##function function
@@ -18,8 +20,9 @@ typedef VkQueueFamilyProperties * VkQueueFamilyPropertiesPtr;
 struct VulkanDevice{
     VulkanDevice() : created(false){};
     int32_t getUsableMemoryType(uint32_t memoryTypeBits, const VkMemoryPropertyFlags requiredProperties);
+    int32_t getUsableDeviceQueue(const VkQueueFlags requiredProperties);
+    VulkanCommandPool * getCommandPool(VkCommandPoolCreateFlags flags, uint32_t queueFamilyIndex);
 
-    VkCommandBuffer currentCommandBuffer;
     VkDevice device;
     bool created;
     VkPhysicalDeviceFeatures deviceFeatures;
@@ -27,6 +30,7 @@ struct VulkanDevice{
     VkImageFormatProperties deviceImageFormatProperties;
     VkPhysicalDeviceMemoryProperties deviceMemoryProperties;
     VkPhysicalDeviceProperties deviceProperties;
+    uint32_t deviceQueueFamilyPropertyCount;
     VkQueueFamilyPropertiesPtr deviceQueueProperties;
     VkSparseImageFormatProperties deviceSparseImageFormatProperties;
 
