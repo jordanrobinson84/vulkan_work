@@ -19,6 +19,7 @@ struct VulkanDevice{
     VulkanDevice() : created(false){};
     int32_t getUsableMemoryType(uint32_t memoryTypeBits, const VkMemoryPropertyFlags requiredProperties);
 
+    VkCommandBuffer currentCommandBuffer;
     VkDevice device;
     bool created;
     VkPhysicalDeviceFeatures deviceFeatures;

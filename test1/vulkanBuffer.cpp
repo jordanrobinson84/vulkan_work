@@ -46,19 +46,84 @@ VulkanBuffer::VulkanBuffer(VulkanDevice * deviceContext, VkBufferUsageFlags usag
     // Bind Memory for buffer
     assert( deviceContext->vkBindBufferMemory(deviceContext->device, buffer, bufferMemory, 0) == VK_SUCCESS);
 
-    // Set buffer data
-    void * bufferData = nullptr;
-    assert( deviceContext->vkMapMemory(deviceContext->device, bufferMemory, 0, memoryRequirements.size, 0, &bufferData) == VK_SUCCESS);
-    assert(bufferData != nullptr);
-    memcpy(bufferData, data, dataSize);
-    deviceContext->vkUnmapMemory(deviceContext->device, bufferMemory);
+    if (hostVisible){
+        // Set buffer data
+        void * bufferData = nullptr;
+        assert( deviceContext->vkMapMemory(deviceContext->device, bufferMemory, 0, memoryRequirements.size, 0, &bufferData) == VK_SUCCESS);
+        assert(bufferData != nullptr);
+        memcpy(bufferData, data, dataSize);
+        deviceContext->vkUnmapMemory(deviceContext->device, bufferMemory);
+    
+        // Flush to make data GPU-visible
+        VkMappedMemoryRange hostMemoryRange;
+        hostMemoryRange.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+        hostMemoryRange.pNext = nullptr;
+        hostMemoryRange.memory = bufferMemory;
+        hostMemoryRange.offset = 0;
+        hostMemoryRange.size = memoryRequirements.size;
+        deviceContext->vkFlushMappedMemoryRanges(deviceContext->device, 1, &hostMemoryRange);
 
-    // Flush to make data GPU-visible
-    VkMappedMemoryRange hostMemoryRange;
-    hostMemoryRange.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
-    hostMemoryRange.pNext = nullptr;
-    hostMemoryRange.memory = bufferMemory;
-    hostMemoryRange.offset = 0;
-    hostMemoryRange.size = memoryRequirements.size;
-    deviceContext->vkFlushMappedMemoryRanges(deviceContext->device, 1, &hostMemoryRange);
+    // Copy from host-mapped buffer to device local buffer
+    }else{
+        // Buffer Creation Info
+        VkBuffer srcBuffer;
+        VkBufferCreateInfo srcBufferInfo;
+        srcBufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        srcBufferInfo.pNext = nullptr;
+        srcBufferInfo.flags = 0;
+        srcBufferInfo.size = dataSize;
+        srcBufferInfo.usage = usage | (hostVisible ? VK_BUFFER_USAGE_TRANSFER_SRC_BIT : VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+        srcBufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        srcBufferInfo.queueFamilyIndexCount = 0; // Not sharing
+        srcBufferInfo.pQueueFamilyIndices = nullptr;
+
+        assert(deviceContext->vkCreateBuffer(deviceContext->device, &srcBufferInfo, nullptr, &srcBuffer) == VK_SUCCESS);
+
+        // Get Memory Requirements
+        VkMemoryRequirements srcMemoryRequirements;
+        deviceContext->vkGetBufferMemoryRequirements(deviceContext->device, buffer, &srcMemoryRequirements);
+        std::cout << "Memory requirements for vertex source buffer: " << std::dec << srcMemoryRequirements.size << std::endl;
+        memoryType = deviceContext->getUsableMemoryType(srcMemoryRequirements.memoryTypeBits, hostVisible ? VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT : VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        if ( memoryType == -1){
+            memoryType = deviceContext->getUsableMemoryType(srcMemoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+            assert (memoryType != -1);
+        }
+        std::cout << "Memory type for vertex source buffer: " << std::dec << memoryType << std::endl;
+
+        // Allocate Memory
+        VkDeviceMemory srcBufferMemory;
+        VkMemoryAllocateInfo srcBufferAllocateInfo;
+        srcBufferAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        srcBufferAllocateInfo.pNext = nullptr;
+        srcBufferAllocateInfo.allocationSize = srcMemoryRequirements.size;
+        srcBufferAllocateInfo.memoryTypeIndex = memoryType;
+        assert( deviceContext->vkAllocateMemory(deviceContext->device, &srcBufferAllocateInfo, nullptr, &srcBufferMemory) == VK_SUCCESS);
+
+        // Bind Memory for srcBuffer
+        assert( deviceContext->vkBindBufferMemory(deviceContext->device, srcBuffer, srcBufferMemory, 0) == VK_SUCCESS);
+
+        // Set srcBuffer data
+        void * srcBufferData = nullptr;
+        assert( deviceContext->vkMapMemory(deviceContext->device, srcBufferMemory, 0, srcMemoryRequirements.size, 0, &srcBufferData) == VK_SUCCESS);
+        assert(srcBufferData != nullptr);
+        memcpy(srcBufferData, data, dataSize);
+        deviceContext->vkUnmapMemory(deviceContext->device, srcBufferMemory);
+
+        // Flush to make data GPU-visible
+        VkMappedMemoryRange hostMemoryRange;
+        hostMemoryRange.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+        hostMemoryRange.pNext = nullptr;
+        hostMemoryRange.memory = srcBufferMemory;
+        hostMemoryRange.offset = 0;
+        hostMemoryRange.size = srcMemoryRequirements.size;
+        deviceContext->vkFlushMappedMemoryRanges(deviceContext->device, 1, &hostMemoryRange);
+
+        // Copy between buffers
+        // VkBufferCopy hostToDeviceCopy;
+        // hostToDeviceCopy.srcOffset = 0;
+        // hostToDeviceCopy.dstOffset;
+        // hostToDeviceCopy.size = memoryRequirements.size;
+
+        // deviceContext->vkCmdCopyBuffer(commandBuffer, srcBuffer, buffer, 1, &hostToDeviceCopy);
+    }
 }
