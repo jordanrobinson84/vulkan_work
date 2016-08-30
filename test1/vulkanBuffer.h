@@ -9,7 +9,7 @@ class VulkanBuffer{
 private:
 
 public:
-    VulkanBuffer(const VulkanDevice * deviceContext, VkBufferUsageFlags usage, const void * data, const uint32_t dataSize, const bool hostVisible );
+    VulkanBuffer(VulkanDevice * deviceContext, VkBufferUsageFlags usage, const void * data, const uint32_t dataSize, const bool hostVisible );
     ~VulkanBuffer();
 
     VkBuffer bufferHandle;

@@ -1,7 +1,7 @@
 #include <cassert>
 #include "vulkanBuffer.h"
 
-VulkanBuffer::VulkanBuffer(const VulkanDevice * __deviceContext, VkBufferUsageFlags usage, const void * data, const uint32_t dataSize, const bool hostVisible ){
+VulkanBuffer::VulkanBuffer(VulkanDevice * __deviceContext, VkBufferUsageFlags usage, const void * data, const uint32_t dataSize, const bool hostVisible ){
 
     // Set the Device Context
     deviceContext = __deviceContext;
@@ -16,7 +16,7 @@ VulkanBuffer::VulkanBuffer(const VulkanDevice * __deviceContext, VkBufferUsageFl
     bufferInfo.queueFamilyIndexCount = 0; // Not sharing
     bufferInfo.pQueueFamilyIndices = nullptr;
 
-    assert(deviceContext->vkCreateBuffer(deviceContext->device, &bufferInfo, nullptr, &buffer) == VK_SUCCESS);
+    assert(deviceContext->vkCreateBuffer(deviceContext->device, &bufferInfo, nullptr, &bufferHandle) == VK_SUCCESS);
 
     // // Buffer View Creation Info
     // VkBufferViewCreateInfo bufferViewInfo;
@@ -30,7 +30,7 @@ VulkanBuffer::VulkanBuffer(const VulkanDevice * __deviceContext, VkBufferUsageFl
     // assert(deviceContext->vkCreateBufferView(deviceContext->device, &bufferViewInfo, nullptr, bufferView) == VK_SUCCESS);
 
     // Get Memory Requirements
-    deviceContext->vkGetBufferMemoryRequirements(deviceContext->device, buffer, &memoryRequirements);
+    deviceContext->vkGetBufferMemoryRequirements(deviceContext->device, bufferHandle, &memoryRequirements);
     std::cout << "Memory requirements for vertex buffer: " << std::dec << memoryRequirements.size << std::endl;
     int32_t memoryType = deviceContext->getUsableMemoryType(memoryRequirements.memoryTypeBits, hostVisible ? VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT : VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     if ( memoryType == -1){
@@ -70,7 +70,7 @@ VulkanBuffer::VulkanBuffer(const VulkanDevice * __deviceContext, VkBufferUsageFl
     }else{
 
         // Source Buffer must be host-mapped
-        VulkanBuffer * srcBuffer(deviceContext, usage, data, dataSize, true);
+        VulkanBuffer * srcBuffer = new VulkanBuffer(deviceContext, usage, data, dataSize, true);
 
         // Copy between buffers
         VkBufferCopy hostToDeviceCopy;
@@ -84,12 +84,12 @@ VulkanBuffer::VulkanBuffer(const VulkanDevice * __deviceContext, VkBufferUsageFl
 
         VulkanCommandPool * copyCommandPool = deviceContext->getCommandPool(VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT, copyQueueFamily);
         assert(copyCommandPool != nullptr);
-        VkCommandBuffer * copyCommandBuffer = copyCommandPool->getCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, 1);
+        VkCommandBuffer * copyCommandBuffer = copyCommandPool->getCommandBuffers(VK_COMMAND_BUFFER_LEVEL_PRIMARY, 1);
         assert(copyCommandBuffer != nullptr);
 
         // (TODO)Record into command buffer
 
-        deviceContext->vkCmdCopyBuffer(commandBuffer, srcBuffer->bufferhandle, buffer, 1, &hostToDeviceCopy);
+        //deviceContext->vkCmdCopyBuffer(commandBuffer, srcBuffer->bufferHandle, bufferHandle, 1, &hostToDeviceCopy);
 
         delete srcBuffer;
     }

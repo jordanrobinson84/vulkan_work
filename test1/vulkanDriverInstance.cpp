@@ -7,7 +7,7 @@
 #define VK_DEVICE_FUNCTION(function) devices[deviceNumber].function = (PFN_##function)( vkGetDeviceProcAddr( devices[deviceNumber].device, #function)); assert( devices[deviceNumber].function != nullptr)
 
 VulkanCommandPool * VulkanDevice::getCommandPool(VkCommandPoolCreateFlags flags, uint32_t queueFamilyIndex){
-    VulkanCommandPool * commandPool = new VulkanCommandPool(device, flags, queueFamilyIndex);
+    VulkanCommandPool * commandPool = new VulkanCommandPool(this, flags, queueFamilyIndex);
 
     return commandPool;
 }

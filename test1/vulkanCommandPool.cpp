@@ -1,6 +1,6 @@
 #include "vulkanCommandPool.h"
 
-VulkanCommandPool::VulkanCommandPool(const VulkanDevice * __deviceContext, VkCommandPoolCreateFlags flags, uint32_t queueFamilyIndex){
+VulkanCommandPool::VulkanCommandPool(VulkanDevice * __deviceContext, VkCommandPoolCreateFlags flags, uint32_t queueFamilyIndex){
     deviceContext = __deviceContext;
 
     // Set up the Command Pool
@@ -19,7 +19,7 @@ VkCommandBuffer * VulkanCommandPool::getCommandBuffers(VkCommandBufferLevel leve
     info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     info.pNext = nullptr;
     info.commandPool = commandPoolHandle;
-    info.commandBufferLevel = level;
+    info.level = level;
     info.commandBufferCount = commandBufferCount;
     assert(deviceContext->vkAllocateCommandBuffers(deviceContext->device, &info, commandBufferArray) == VK_SUCCESS);
 
@@ -32,9 +32,9 @@ void VulkanCommandPool::freeCommandBuffers(uint32_t commandBufferCount, const Vk
     delete[] commandBuffers;
 }
 
-void VulkanCommandPool::resetCommandBuffer(VkCommandBuffer commandBuffer, VkCommandBufferResetFlags flags){
-    assert(deviceContext->vkResetCommandBuffer(commandBuffer, flags) == VK_SUCCESS);
-}
+// void VulkanCommandPool::resetCommandBuffer(VkCommandBuffer commandBuffer, VkCommandBufferResetFlags flags){
+//     assert(deviceContext->vkResetCommandBuffer(commandBuffer, flags) == VK_SUCCESS);
+// }
 
 void VulkanCommandPool::resetCommandPool(VkCommandPoolResetFlags flags){
     assert(deviceContext->vkResetCommandPool(deviceContext->device, commandPoolHandle, flags) == VK_SUCCESS);

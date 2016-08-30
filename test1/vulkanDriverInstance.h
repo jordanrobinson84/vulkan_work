@@ -17,6 +17,8 @@
 
 typedef VkQueueFamilyProperties * VkQueueFamilyPropertiesPtr;
 
+class VulkanCommandPool;
+
 struct VulkanDevice{
     VulkanDevice() : created(false){};
     int32_t getUsableMemoryType(uint32_t memoryTypeBits, const VkMemoryPropertyFlags requiredProperties);
