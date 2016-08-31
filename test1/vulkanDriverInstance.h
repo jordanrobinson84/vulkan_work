@@ -1,9 +1,23 @@
 #ifndef __VULKAN_DRIVER_INSTANCE__
 #define __VULKAN_DRIVER_INSTANCE__
 
-#include <vulkan/vulkan.h>
+#if defined (__linux__)
+    #include <X11/keysym.h>
+    #include <xcb/xcb.h>
+    #include <xcb/xcb_keysyms.h>
+    #include <xcb/xcb_icccm.h>
+    #include <xcb/randr.h>
+    #define VK_USE_PLATFORM_XCB_KHR
+    #define VK_KHR_PLATFORM_SURFACE_EXTENSION_NAME  VK_KHR_XCB_SURFACE_EXTENSION_NAME
+    #define PFN_vkCreateSurfaceKHR PFN_vkCreateXcbSurfaceKHR
+    #define vkCreateSurfaceKHR vkCreateXcbSurfaceKHR
+    #define PFN_vkGetPhysicalDevicePresentationSupportKHR PFN_vkGetPhysicalDeviceXcbPresentationSupportKHR
+    #define vkGetPhysicalDevicePresentationSupportKHR vkGetPhysicalDeviceXcbPresentationSupportKHR
+#endif
+
 #include <vulkan/vk_platform.h>
 #include <vulkan/vk_sdk_platform.h>
+#include <vulkan/vulkan.h>
 #include <vector>
 #include <iostream>
 #include <dlfcn.h> 
@@ -22,7 +36,7 @@ class VulkanCommandPool;
 struct VulkanDevice{
     VulkanDevice() : created(false){};
     int32_t getUsableMemoryType(uint32_t memoryTypeBits, const VkMemoryPropertyFlags requiredProperties);
-    int32_t getUsableDeviceQueue(const VkQueueFlags requiredProperties);
+    int32_t getUsableDeviceQueueFamily(const VkQueueFlags requiredProperties);
     VulkanCommandPool * getCommandPool(VkCommandPoolCreateFlags flags, uint32_t queueFamilyIndex);
 
     VkDevice device;
@@ -42,6 +56,57 @@ struct VulkanDevice{
     VK_DEVICE_FUNCTION(vkAllocateMemory);
     VK_DEVICE_FUNCTION(vkBindBufferMemory);
     VK_DEVICE_FUNCTION(vkBindImageMemory);
+
+    // Command Buffers
+    VK_DEVICE_FUNCTION(vkBeginCommandBuffer);
+    VK_DEVICE_FUNCTION(vkCmdBeginQuery);
+    VK_DEVICE_FUNCTION(vkCmdBeginRenderPass);
+    VK_DEVICE_FUNCTION(vkCmdBindDescriptorSets);
+    VK_DEVICE_FUNCTION(vkCmdBindIndexBuffer);
+    VK_DEVICE_FUNCTION(vkCmdBindPipeline);
+    VK_DEVICE_FUNCTION(vkCmdBindVertexBuffers);
+    VK_DEVICE_FUNCTION(vkCmdBlitImage);
+    VK_DEVICE_FUNCTION(vkCmdClearAttachments);
+    VK_DEVICE_FUNCTION(vkCmdClearColorImage);
+    VK_DEVICE_FUNCTION(vkCmdClearDepthStencilImage);
+    VK_DEVICE_FUNCTION(vkCmdCopyBuffer);
+    VK_DEVICE_FUNCTION(vkCmdCopyBufferToImage);
+    VK_DEVICE_FUNCTION(vkCmdCopyImage);
+    VK_DEVICE_FUNCTION(vkCmdCopyImageToBuffer);
+    VK_DEVICE_FUNCTION(vkCmdCopyQueryPoolResults);
+    VK_DEVICE_FUNCTION(vkCmdDispatch);
+    VK_DEVICE_FUNCTION(vkCmdDispatchIndirect);
+    VK_DEVICE_FUNCTION(vkCmdDraw);
+    VK_DEVICE_FUNCTION(vkCmdDrawIndexed);
+    VK_DEVICE_FUNCTION(vkCmdDrawIndexedIndirect);
+    VK_DEVICE_FUNCTION(vkCmdDrawIndirect);
+    VK_DEVICE_FUNCTION(vkCmdEndQuery);
+    VK_DEVICE_FUNCTION(vkCmdEndRenderPass);
+    VK_DEVICE_FUNCTION(vkCmdExecuteCommands);
+    VK_DEVICE_FUNCTION(vkCmdFillBuffer);
+    VK_DEVICE_FUNCTION(vkCmdNextSubpass);
+    VK_DEVICE_FUNCTION(vkCmdPipelineBarrier);
+    VK_DEVICE_FUNCTION(vkCmdPushConstants);
+    VK_DEVICE_FUNCTION(vkCmdResetEvent);
+    VK_DEVICE_FUNCTION(vkCmdResetQueryPool);
+    VK_DEVICE_FUNCTION(vkCmdResolveImage);
+    VK_DEVICE_FUNCTION(vkCmdSetBlendConstants);
+    VK_DEVICE_FUNCTION(vkCmdSetDepthBias);
+    VK_DEVICE_FUNCTION(vkCmdSetDepthBounds);
+    VK_DEVICE_FUNCTION(vkCmdSetEvent);
+    VK_DEVICE_FUNCTION(vkCmdSetLineWidth);
+    VK_DEVICE_FUNCTION(vkCmdSetScissor);
+    VK_DEVICE_FUNCTION(vkCmdSetStencilCompareMask);
+    VK_DEVICE_FUNCTION(vkCmdSetStencilReference);
+    VK_DEVICE_FUNCTION(vkCmdSetStencilWriteMask);
+    VK_DEVICE_FUNCTION(vkCmdSetViewport);
+    VK_DEVICE_FUNCTION(vkCmdUpdateBuffer);
+    VK_DEVICE_FUNCTION(vkCmdWaitEvents);
+    VK_DEVICE_FUNCTION(vkCmdWriteTimestamp);
+    VK_DEVICE_FUNCTION(vkEndCommandBuffer);
+    VK_DEVICE_FUNCTION(vkQueueSubmit);
+
+    // Creation
     VK_DEVICE_FUNCTION(vkCreateBuffer);
     VK_DEVICE_FUNCTION(vkCreateBufferView);
     VK_DEVICE_FUNCTION(vkCreateCommandPool);
@@ -61,6 +126,8 @@ struct VulkanDevice{
     VK_DEVICE_FUNCTION(vkCreateSampler);
     VK_DEVICE_FUNCTION(vkCreateSemaphore);
     VK_DEVICE_FUNCTION(vkCreateShaderModule);
+
+    // Destruction
     VK_DEVICE_FUNCTION(vkDestroyBuffer);
     VK_DEVICE_FUNCTION(vkDestroyBufferView);
     VK_DEVICE_FUNCTION(vkDestroyCommandPool);
@@ -79,11 +146,16 @@ struct VulkanDevice{
     VK_DEVICE_FUNCTION(vkDestroySampler);
     VK_DEVICE_FUNCTION(vkDestroySemaphore);
     VK_DEVICE_FUNCTION(vkDestroyShaderModule);
+
     VK_DEVICE_FUNCTION(vkDeviceWaitIdle);
     VK_DEVICE_FUNCTION(vkFlushMappedMemoryRanges);
+
+    // Free
     VK_DEVICE_FUNCTION(vkFreeCommandBuffers);
     VK_DEVICE_FUNCTION(vkFreeDescriptorSets);
     VK_DEVICE_FUNCTION(vkFreeMemory);
+
+    // Getters
     VK_DEVICE_FUNCTION(vkGetBufferMemoryRequirements);
     VK_DEVICE_FUNCTION(vkGetDeviceMemoryCommitment);
     VK_DEVICE_FUNCTION(vkGetDeviceQueue);
@@ -95,13 +167,17 @@ struct VulkanDevice{
     VK_DEVICE_FUNCTION(vkGetPipelineCacheData);
     VK_DEVICE_FUNCTION(vkGetQueryPoolResults);
     VK_DEVICE_FUNCTION(vkGetRenderAreaGranularity);
+
     VK_DEVICE_FUNCTION(vkInvalidateMappedMemoryRanges);
     VK_DEVICE_FUNCTION(vkMapMemory);
     VK_DEVICE_FUNCTION(vkMergePipelineCaches);
+
+    // Reset
     VK_DEVICE_FUNCTION(vkResetCommandPool);
     VK_DEVICE_FUNCTION(vkResetDescriptorPool);
     VK_DEVICE_FUNCTION(vkResetEvent);
     VK_DEVICE_FUNCTION(vkResetFences);
+
     VK_DEVICE_FUNCTION(vkSetEvent);
     VK_DEVICE_FUNCTION(vkUnmapMemory);
     VK_DEVICE_FUNCTION(vkUpdateDescriptorSets);
@@ -145,6 +221,21 @@ public:
     VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceProperties);
     VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceQueueFamilyProperties);
     VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceSparseImageFormatProperties);
+
+    // Window System Integration
+    VK_INSTANCE_FUNCTION(vkCreateSurfaceKHR);
+    VK_INSTANCE_FUNCTION(vkCreateDisplayModeKHR);
+    VK_INSTANCE_FUNCTION(vkCreateDisplayPlaneSurfaceKHR);
+    VK_INSTANCE_FUNCTION(vkDestroySurfaceKHR);
+    VK_INSTANCE_FUNCTION(vkGetDisplayModePropertiesKHR);
+    VK_INSTANCE_FUNCTION(vkGetDisplayPlaneCapabilitiesKHR);
+    VK_INSTANCE_FUNCTION(vkGetDisplayPlaneSupportedDisplaysKHR);
+    VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceDisplayPropertiesKHR);
+    VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceDisplayPlanePropertiesKHR);
+    VK_INSTANCE_FUNCTION(vkGetPhysicalDevicePresentationSupportKHR);
+    VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceSurfaceCapabilitiesKHR);
+    VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceSurfaceFormatsKHR);
+    VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceSurfacePresentModesKHR);
 };
 
 #undef VK_EXPORTED_FUNCTION

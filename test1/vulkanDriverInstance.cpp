@@ -27,7 +27,7 @@ int32_t VulkanDevice::getUsableMemoryType(uint32_t memoryTypeBits, const VkMemor
     return type;
 }
 
-int32_t VulkanDevice::getUsableDeviceQueue(const VkQueueFlags requiredProperties){
+int32_t VulkanDevice::getUsableDeviceQueueFamily(const VkQueueFlags requiredProperties){
     int32_t queueFamily = -1;
     uint32_t queueFamilyIndex = 0;
     while(queueFamilyIndex < deviceQueueFamilyPropertyCount && queueFamily == -1){
@@ -111,6 +111,21 @@ VulkanDriverInstance::VulkanDriverInstance(std::string applicationName){
         VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceProperties);
         VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceQueueFamilyProperties);
         VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceSparseImageFormatProperties);
+
+        // Window System Integration - Not Working
+        // VK_INSTANCE_FUNCTION(vkCreateSurfaceKHR);
+        // VK_INSTANCE_FUNCTION(vkCreateDisplayModeKHR);
+        // VK_INSTANCE_FUNCTION(vkCreateDisplayPlaneSurfaceKHR);
+        // VK_INSTANCE_FUNCTION(vkDestroySurfaceKHR);
+        // VK_INSTANCE_FUNCTION(vkGetDisplayModePropertiesKHR);
+        // VK_INSTANCE_FUNCTION(vkGetDisplayPlaneCapabilitiesKHR);
+        // VK_INSTANCE_FUNCTION(vkGetDisplayPlaneSupportedDisplaysKHR);
+        // VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceDisplayPropertiesKHR);
+        // VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceDisplayPlanePropertiesKHR);
+        // VK_INSTANCE_FUNCTION(vkGetPhysicalDevicePresentationSupportKHR);
+        // VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceSurfaceCapabilitiesKHR);
+        // VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceSurfaceFormatsKHR);
+        // VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceSurfacePresentModesKHR);
 
         enumeratePhysicalDevices();
     }
@@ -276,6 +291,56 @@ void VulkanDriverInstance::setupDevice(uint32_t deviceNumber, bool debugPrint){
     VK_DEVICE_FUNCTION(vkAllocateMemory);
     VK_DEVICE_FUNCTION(vkBindBufferMemory);
     VK_DEVICE_FUNCTION(vkBindImageMemory);
+
+    // Command Buffers
+    VK_DEVICE_FUNCTION(vkBeginCommandBuffer);
+    VK_DEVICE_FUNCTION(vkCmdBeginQuery);
+    VK_DEVICE_FUNCTION(vkCmdBeginRenderPass);
+    VK_DEVICE_FUNCTION(vkCmdBindDescriptorSets);
+    VK_DEVICE_FUNCTION(vkCmdBindIndexBuffer);
+    VK_DEVICE_FUNCTION(vkCmdBindPipeline);
+    VK_DEVICE_FUNCTION(vkCmdBindVertexBuffers);
+    VK_DEVICE_FUNCTION(vkCmdBlitImage);
+    VK_DEVICE_FUNCTION(vkCmdClearAttachments);
+    VK_DEVICE_FUNCTION(vkCmdClearColorImage);
+    VK_DEVICE_FUNCTION(vkCmdClearDepthStencilImage);
+    VK_DEVICE_FUNCTION(vkCmdCopyBuffer);
+    VK_DEVICE_FUNCTION(vkCmdCopyBufferToImage);
+    VK_DEVICE_FUNCTION(vkCmdCopyImage);
+    VK_DEVICE_FUNCTION(vkCmdCopyImageToBuffer);
+    VK_DEVICE_FUNCTION(vkCmdCopyQueryPoolResults);
+    VK_DEVICE_FUNCTION(vkCmdDispatch);
+    VK_DEVICE_FUNCTION(vkCmdDispatchIndirect);
+    VK_DEVICE_FUNCTION(vkCmdDraw);
+    VK_DEVICE_FUNCTION(vkCmdDrawIndexed);
+    VK_DEVICE_FUNCTION(vkCmdDrawIndexedIndirect);
+    VK_DEVICE_FUNCTION(vkCmdDrawIndirect);
+    VK_DEVICE_FUNCTION(vkCmdEndQuery);
+    VK_DEVICE_FUNCTION(vkCmdEndRenderPass);
+    VK_DEVICE_FUNCTION(vkCmdExecuteCommands);
+    VK_DEVICE_FUNCTION(vkCmdFillBuffer);
+    VK_DEVICE_FUNCTION(vkCmdNextSubpass);
+    VK_DEVICE_FUNCTION(vkCmdPipelineBarrier);
+    VK_DEVICE_FUNCTION(vkCmdPushConstants);
+    VK_DEVICE_FUNCTION(vkCmdResetEvent);
+    VK_DEVICE_FUNCTION(vkCmdResetQueryPool);
+    VK_DEVICE_FUNCTION(vkCmdResolveImage);
+    VK_DEVICE_FUNCTION(vkCmdSetBlendConstants);
+    VK_DEVICE_FUNCTION(vkCmdSetDepthBias);
+    VK_DEVICE_FUNCTION(vkCmdSetDepthBounds);
+    VK_DEVICE_FUNCTION(vkCmdSetEvent);
+    VK_DEVICE_FUNCTION(vkCmdSetLineWidth);
+    VK_DEVICE_FUNCTION(vkCmdSetScissor);
+    VK_DEVICE_FUNCTION(vkCmdSetStencilCompareMask);
+    VK_DEVICE_FUNCTION(vkCmdSetStencilReference);
+    VK_DEVICE_FUNCTION(vkCmdSetStencilWriteMask);
+    VK_DEVICE_FUNCTION(vkCmdSetViewport);
+    VK_DEVICE_FUNCTION(vkCmdUpdateBuffer);
+    VK_DEVICE_FUNCTION(vkCmdWaitEvents);
+    VK_DEVICE_FUNCTION(vkCmdWriteTimestamp);
+    VK_DEVICE_FUNCTION(vkEndCommandBuffer);
+    VK_DEVICE_FUNCTION(vkQueueSubmit);
+
     // Creation
     VK_DEVICE_FUNCTION(vkCreateBuffer);
     VK_DEVICE_FUNCTION(vkCreateBufferView);

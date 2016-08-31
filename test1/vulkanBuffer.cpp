@@ -79,7 +79,7 @@ VulkanBuffer::VulkanBuffer(VulkanDevice * __deviceContext, VkBufferUsageFlags us
         hostToDeviceCopy.size = memoryRequirements.size;
 
         // Find copy-capable queue (should be any queue)
-        int32_t copyQueueFamily = deviceContext->getUsableDeviceQueue(VK_QUEUE_TRANSFER_BIT);
+        int32_t copyQueueFamily = deviceContext->getUsableDeviceQueueFamily(VK_QUEUE_TRANSFER_BIT);
         assert(copyQueueFamily != -1);
 
         VulkanCommandPool * copyCommandPool = deviceContext->getCommandPool(VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT, copyQueueFamily);
@@ -87,9 +87,31 @@ VulkanBuffer::VulkanBuffer(VulkanDevice * __deviceContext, VkBufferUsageFlags us
         VkCommandBuffer * copyCommandBuffer = copyCommandPool->getCommandBuffers(VK_COMMAND_BUFFER_LEVEL_PRIMARY, 1);
         assert(copyCommandBuffer != nullptr);
 
-        // (TODO)Record into command buffer
+        // Record into command buffer
+        VkCommandBufferBeginInfo cbBeginInfo;
+        cbBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        cbBeginInfo.pNext = nullptr;
+        cbBeginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+        cbBeginInfo.pInheritanceInfo = nullptr; // Not a secondary command buffer
 
-        //deviceContext->vkCmdCopyBuffer(commandBuffer, srcBuffer->bufferHandle, bufferHandle, 1, &hostToDeviceCopy);
+        deviceContext->vkBeginCommandBuffer(*copyCommandBuffer, &cbBeginInfo);
+        deviceContext->vkCmdCopyBuffer(*copyCommandBuffer, srcBuffer->bufferHandle, bufferHandle, 1, &hostToDeviceCopy);
+        deviceContext->vkEndCommandBuffer(*copyCommandBuffer);
+
+        // Dispatch
+        VkQueue copyQueue;
+        deviceContext->vkGetDeviceQueue(deviceContext->device, copyQueueFamily, 0, &copyQueue);
+        VkSubmitInfo copySubmitInfo;
+        copySubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        copySubmitInfo.pNext = nullptr;
+        copySubmitInfo.waitSemaphoreCount = 0; // No wait semaphores
+        copySubmitInfo.pWaitSemaphores = nullptr; // No wait semaphores
+        copySubmitInfo.pWaitDstStageMask = nullptr; // No wait semaphores
+        copySubmitInfo.commandBufferCount = 1;
+        copySubmitInfo.signalSemaphoreCount = 0; // No signal semaphores
+        copySubmitInfo.pSignalSemaphores = nullptr; // No signal semaphores
+
+        assert(deviceContext->vkQueueSubmit(copyQueue, 1, &copySubmitInfo, VK_NULL_HANDLE) == VK_SUCCESS);
 
         delete srcBuffer;
     }

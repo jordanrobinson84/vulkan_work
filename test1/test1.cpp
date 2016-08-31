@@ -1,5 +1,3 @@
-#include <vulkan/vulkan.h>
-#include <vulkan/vk_sdk_platform.h>
 #include <iostream>
 #include <cassert>
 #include "vulkanDriverInstance.h"
@@ -40,7 +38,7 @@ int main(){
     vertexBufferData[7] = 0.5; // y[2]
     vertexBufferData[8] = 0.0; // z[2]
 
-    VulkanBuffer vertexBuffer(deviceContext, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, vertexBufferData, sizeof(float) * 9, true);
+    VulkanBuffer vertexBuffer(deviceContext, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, vertexBufferData, sizeof(float) * 9, false);
 
     return true;
 }
