@@ -7,6 +7,7 @@
     #include <xcb/xcb_keysyms.h>
     #include <xcb/xcb_icccm.h>
     #include <xcb/randr.h>
+    #include <malloc.h>
     #define VK_USE_PLATFORM_XCB_KHR
     #define VK_KHR_PLATFORM_SURFACE_EXTENSION_NAME  VK_KHR_XCB_SURFACE_EXTENSION_NAME
     #define PFN_vkCreateSurfaceKHR PFN_vkCreateXcbSurfaceKHR
@@ -22,6 +23,7 @@
 #include <iostream>
 #include <dlfcn.h> 
 #include <cassert>
+#include <cstring>
 #include "vulkanCommandPool.h"
 
 #define VK_EXPORTED_FUNCTION(function) PFN_##function function
@@ -203,6 +205,8 @@ public:
     std::vector<VulkanDevice> devices;
 
     // Exported Function Pointers
+    VK_EXPORTED_FUNCTION(vkEnumerateInstanceLayerProperties);
+    VK_EXPORTED_FUNCTION(vkEnumerateInstanceExtensionProperties);
     VK_EXPORTED_FUNCTION(vkGetInstanceProcAddr);
     VK_EXPORTED_FUNCTION(vkGetDeviceProcAddr);
     VK_EXPORTED_FUNCTION(vkCreateInstance);
@@ -211,9 +215,8 @@ public:
     // Instance Function Pointers
     VK_INSTANCE_FUNCTION(vkCreateDevice);
     VK_INSTANCE_FUNCTION(vkDestroyDevice);
-    VK_INSTANCE_FUNCTION(vkEnumerateDeviceLayerProperties);
-    VK_INSTANCE_FUNCTION(vkEnumerateDeviceExtensionProperties);
     VK_INSTANCE_FUNCTION(vkEnumeratePhysicalDevices);
+    VK_INSTANCE_FUNCTION(vkEnumerateDeviceExtensionProperties);
     VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceFeatures);
     VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceFormatProperties);
     VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceImageFormatProperties);

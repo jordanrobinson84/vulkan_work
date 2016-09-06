@@ -6,6 +6,11 @@
 #define VK_INSTANCE_FUNCTION(function) function = (PFN_##function)( vkGetInstanceProcAddr( instance, #function)); assert( function != nullptr)
 #define VK_DEVICE_FUNCTION(function) devices[deviceNumber].function = (PFN_##function)( vkGetDeviceProcAddr( devices[deviceNumber].device, #function)); assert( devices[deviceNumber].function != nullptr)
 
+#define VK_MAJOR_VERSION(apiVersion) apiVersion >> 22
+#define VK_MINOR_VERSION(apiVersion) (apiVersion >> 12) & 0x3FF
+#define VK_PATCH_VERSION(apiVersion) apiVersion & 0xFFF
+#define VK_VERSION_ENCODING(major, minor, patch) ((major & 0x3FF) << 22) | ((minor & 0x3FF) << 12) | (patch & 0xFFF)
+
 VulkanCommandPool * VulkanDevice::getCommandPool(VkCommandPoolCreateFlags flags, uint32_t queueFamilyIndex){
     VulkanCommandPool * commandPool = new VulkanCommandPool(this, flags, queueFamilyIndex);
 
@@ -54,8 +59,8 @@ VulkanDriverInstance::VulkanDriverInstance(std::string applicationName){
     numPhysicalDevices                              = 0;
     vkCreateDevice                                  = nullptr;
     vkDestroyDevice                                 = nullptr;
-    vkEnumerateDeviceLayerProperties                = nullptr;
-    vkEnumerateDeviceExtensionProperties            = nullptr;
+    vkEnumerateInstanceLayerProperties              = nullptr;
+    vkEnumerateInstanceExtensionProperties          = nullptr;
     vkEnumeratePhysicalDevices                      = nullptr;
     vkGetPhysicalDeviceFeatures                     = nullptr;
     vkGetPhysicalDeviceFormatProperties             = nullptr;
@@ -68,11 +73,26 @@ VulkanDriverInstance::VulkanDriverInstance(std::string applicationName){
     loader = dlopen( "libvulkan.so", RTLD_NOW);
 
     if (loader != nullptr){
+        VK_EXPORTED_FUNCTION(vkEnumerateInstanceLayerProperties);
+        VK_EXPORTED_FUNCTION(vkEnumerateInstanceExtensionProperties);
         VK_EXPORTED_FUNCTION(vkGetInstanceProcAddr);
         VK_EXPORTED_FUNCTION(vkGetDeviceProcAddr);
         VK_EXPORTED_FUNCTION(vkCreateInstance);
         VK_EXPORTED_FUNCTION(vkDestroyInstance);
 
+        // Enable layers
+        // std::string layerNames[] = {"VK_LAYER_LUNARG_core_validation", "VK_LAYER_LUNARG_image", "VK_LAYER_LUNARG_object_tracker", "VK_LAYER_LUNARG_parameter_validation", "VK_LAYER_LUNARG_swapchain"};
+        // std::vector<VkLayerProperties> layerPropertiesVector;
+        // for (std::string layerName : layerNames){
+        //     VkLayerProperties properties;
+        //     memcpy((void*)layerName.data(), properties.layerName, layerName.size() );
+        //     properties.specVersion              = VK_VERSION_ENCODING(1, 0, 21); //1.0.21
+        //     properties.implementationVersion    = 1;
+        //     memcpy((void*)layerName.data(), properties.description, layerName.size() );
+        //     layerPropertiesVector.push_back(properties);
+        // }
+        // uint32_t layerCount = layerPropertiesVector.size();
+        // assert(vkEnumerateInstanceLayerProperties(&layerCount, layerPropertiesVector.data()) == VK_SUCCESS);
 
         // Create the instance
         assert (vkCreateInstance != nullptr);
@@ -83,7 +103,22 @@ VulkanDriverInstance::VulkanDriverInstance(std::string applicationName){
         app.applicationVersion = 0;
         app.pEngineName = applicationName.c_str();
         app.engineVersion = 0;
-        app.apiVersion = VK_API_VERSION_1_0;
+        app.apiVersion = 0; // Use latest version
+
+        // Extensions
+        const char* enabledExtensions[] = {"VK_KHR_surface", "VK_KHR_xcb_surface"};
+        uint32_t extensionCount = 2;
+        assert(vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr) == VK_SUCCESS);
+        std::cout << "Found " << extensionCount << " extensions." << std::endl;
+        VkExtensionProperties * availableExtensions = new VkExtensionProperties[extensionCount];
+        assert(vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, availableExtensions) == VK_SUCCESS);
+        for (uint32_t extensionIndex = 0; extensionIndex < extensionCount; extensionIndex++){
+            VkExtensionProperties extensionProperties = availableExtensions[extensionIndex];
+            std::cout << "Extension Name: " << extensionProperties.extensionName << std::endl;
+            std::cout << "   Extension Spec Version: " << extensionProperties.specVersion << std::endl;
+        }
+        // delete[] availableExtensions;
+
 
         VkInstanceCreateInfo instanceCreateInfo;
         instanceCreateInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -91,9 +126,9 @@ VulkanDriverInstance::VulkanDriverInstance(std::string applicationName){
         instanceCreateInfo.flags = 0;
         instanceCreateInfo.pApplicationInfo = &app;
         instanceCreateInfo.enabledLayerCount = 0;
-        instanceCreateInfo.ppEnabledLayerNames = NULL;
-        instanceCreateInfo.enabledExtensionCount = 0;
-        instanceCreateInfo.ppEnabledExtensionNames = NULL;
+        instanceCreateInfo.ppEnabledLayerNames = nullptr;
+        instanceCreateInfo.enabledExtensionCount = 2;
+        instanceCreateInfo.ppEnabledExtensionNames = enabledExtensions;
 
         // Assert if instance creation failed
         assert (vkCreateInstance(&instanceCreateInfo, NULL, &instance) == VK_SUCCESS);
@@ -101,9 +136,8 @@ VulkanDriverInstance::VulkanDriverInstance(std::string applicationName){
         // Enumerate instance function pointers
         VK_INSTANCE_FUNCTION(vkCreateDevice);
         VK_INSTANCE_FUNCTION(vkDestroyDevice);
-        VK_INSTANCE_FUNCTION(vkEnumerateDeviceLayerProperties);
-        VK_INSTANCE_FUNCTION(vkEnumerateDeviceExtensionProperties);
         VK_INSTANCE_FUNCTION(vkEnumeratePhysicalDevices);
+        VK_INSTANCE_FUNCTION(vkEnumerateDeviceExtensionProperties);
         VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceFeatures);
         VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceFormatProperties);
         VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceImageFormatProperties);
@@ -113,19 +147,19 @@ VulkanDriverInstance::VulkanDriverInstance(std::string applicationName){
         VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceSparseImageFormatProperties);
 
         // Window System Integration - Not Working
-        // VK_INSTANCE_FUNCTION(vkCreateSurfaceKHR);
-        // VK_INSTANCE_FUNCTION(vkCreateDisplayModeKHR);
-        // VK_INSTANCE_FUNCTION(vkCreateDisplayPlaneSurfaceKHR);
-        // VK_INSTANCE_FUNCTION(vkDestroySurfaceKHR);
-        // VK_INSTANCE_FUNCTION(vkGetDisplayModePropertiesKHR);
-        // VK_INSTANCE_FUNCTION(vkGetDisplayPlaneCapabilitiesKHR);
-        // VK_INSTANCE_FUNCTION(vkGetDisplayPlaneSupportedDisplaysKHR);
-        // VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceDisplayPropertiesKHR);
-        // VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceDisplayPlanePropertiesKHR);
-        // VK_INSTANCE_FUNCTION(vkGetPhysicalDevicePresentationSupportKHR);
-        // VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceSurfaceCapabilitiesKHR);
-        // VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceSurfaceFormatsKHR);
-        // VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceSurfacePresentModesKHR);
+        VK_INSTANCE_FUNCTION(vkCreateSurfaceKHR);
+        VK_INSTANCE_FUNCTION(vkCreateDisplayModeKHR);
+        VK_INSTANCE_FUNCTION(vkCreateDisplayPlaneSurfaceKHR);
+        VK_INSTANCE_FUNCTION(vkDestroySurfaceKHR);
+        VK_INSTANCE_FUNCTION(vkGetDisplayModePropertiesKHR);
+        VK_INSTANCE_FUNCTION(vkGetDisplayPlaneCapabilitiesKHR);
+        VK_INSTANCE_FUNCTION(vkGetDisplayPlaneSupportedDisplaysKHR);
+        VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceDisplayPropertiesKHR);
+        VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceDisplayPlanePropertiesKHR);
+        VK_INSTANCE_FUNCTION(vkGetPhysicalDevicePresentationSupportKHR);
+        VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceSurfaceCapabilitiesKHR);
+        VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceSurfaceFormatsKHR);
+        VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceSurfacePresentModesKHR);
 
         enumeratePhysicalDevices();
     }
@@ -172,8 +206,11 @@ void VulkanDriverInstance::setupDevice(uint32_t deviceNumber, bool debugPrint){
     vkGetPhysicalDeviceProperties(physicalDevices[deviceNumber], &device.deviceProperties);
 
     if (debugPrint){
+        uint32_t majorVersion = VK_MAJOR_VERSION(device.deviceProperties.apiVersion);
+        uint32_t minorVersion = VK_MINOR_VERSION(device.deviceProperties.apiVersion);
+        uint32_t patchVersion = VK_PATCH_VERSION(device.deviceProperties.apiVersion);
         std::cout << "   Physical Device " << std::hex << deviceNumber << ": " << std::endl;
-        std::cout << "      API Version: " << std::hex << device.deviceProperties.apiVersion << std::endl;
+        std::cout << "      API Version: " << std::dec << majorVersion << "." << minorVersion << "." << patchVersion << std::endl;
         std::cout << "      Driver Version: " << std::hex << device.deviceProperties.driverVersion << std::endl;
         std::cout << "      Vendor ID: " << std::hex << device.deviceProperties.vendorID << std::endl;
         std::cout << "      Device ID: " << std::hex << device.deviceProperties.deviceID << std::endl;
@@ -267,6 +304,20 @@ void VulkanDriverInstance::setupDevice(uint32_t deviceNumber, bool debugPrint){
         queueFamily++;
     }
 
+    // Extensions
+    const char* enabledExtensions[] = {"VK_KHR_swapchain"};
+    uint32_t extensionCount = 1;
+    assert(vkEnumerateDeviceExtensionProperties(physicalDevices[deviceNumber], nullptr, &extensionCount, nullptr) == VK_SUCCESS);
+    std::cout << "Found " << extensionCount << " extensions." << std::endl;
+    VkExtensionProperties * availableExtensions = new VkExtensionProperties[extensionCount];
+    assert(vkEnumerateDeviceExtensionProperties(physicalDevices[deviceNumber], nullptr, &extensionCount, availableExtensions) == VK_SUCCESS);
+    for (uint32_t extensionIndex = 0; extensionIndex < extensionCount; extensionIndex++){
+        VkExtensionProperties extensionProperties = availableExtensions[extensionIndex];
+        std::cout << "Extension Name: " << extensionProperties.extensionName << std::endl;
+        std::cout << "   Extension Spec Version: " << extensionProperties.specVersion << std::endl;
+    }
+    delete[] availableExtensions;
+
     // Create Info
     VkDeviceCreateInfo creationInfo;
     creationInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -275,9 +326,9 @@ void VulkanDriverInstance::setupDevice(uint32_t deviceNumber, bool debugPrint){
     creationInfo.queueCreateInfoCount = 1;
     creationInfo.pQueueCreateInfos = queueInfo;
     creationInfo.enabledLayerCount = 0;
-    creationInfo.ppEnabledExtensionNames = nullptr;
-    creationInfo.enabledExtensionCount = 0;
-    creationInfo.ppEnabledExtensionNames = nullptr;
+    creationInfo.ppEnabledLayerNames = nullptr;
+    creationInfo.enabledExtensionCount = 1;
+    creationInfo.ppEnabledExtensionNames = enabledExtensions;
     creationInfo.pEnabledFeatures = nullptr;
 
     // Create Device
