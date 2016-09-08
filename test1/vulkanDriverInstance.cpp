@@ -221,7 +221,25 @@ void VulkanDriverInstance::setupDevice(uint32_t deviceNumber, bool debugPrint){
         std::cout << "      Driver Version: " << std::hex << device.deviceProperties.driverVersion << std::endl;
         std::cout << "      Vendor ID: " << std::hex << device.deviceProperties.vendorID << std::endl;
         std::cout << "      Device ID: " << std::hex << device.deviceProperties.deviceID << std::endl;
-        // std::cout << "      Device Type: " << std::endl;
+        std::string deviceTypeString = ""; 
+        switch(device.deviceProperties.deviceType){
+            case VK_PHYSICAL_DEVICE_TYPE_OTHER:
+                deviceTypeString = "Other";
+                break;
+            case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
+                deviceTypeString = "Integrated GPU";
+                break;
+            case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
+                deviceTypeString = "Discrete GPU";
+                break;
+            case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU:
+                deviceTypeString = "Virtual GPU";
+                break;
+            case VK_PHYSICAL_DEVICE_TYPE_CPU:
+                deviceTypeString = "CPU";
+                break;
+        }
+        std::cout << "      Device Type: " << deviceTypeString << std::endl;
         std::cout << "      Device Name: " << device.deviceProperties.deviceName << std::endl;
     }
 
@@ -241,7 +259,28 @@ void VulkanDriverInstance::setupDevice(uint32_t deviceNumber, bool debugPrint){
 
         if (debugPrint){
             std::cout << "          Queue Family " << queueFamily << ": " << std::endl;
-            std::cout << "              Queue Flags: " << std::hex << queueFamilyProperties.queueFlags << std::endl;
+            std::string properties += "";
+            uint32_t propertyBits[] = { VK_QUEUE_GRAPHICS_BIT, 
+                                        VK_QUEUE_COMPUTE_BIT, 
+                                        VK_QUEUE_TRANSFER_BIT, 
+                                        VK_QUEUE_SPARSE_BINDING_BIT };
+    
+            std::string propertyBitStrings[] = {"VK_QUEUE_GRAPHICS_BIT", 
+                                                "VK_QUEUE_COMPUTE_BIT", 
+                                                "VK_QUEUE_TRANSFER_BIT", 
+                                                "VK_QUEUE_SPARSE_BINDING_BIT"};
+    
+            int propertyIndex = 0;
+            bool firstProperty = true;
+            for (auto property : propertyBits){
+                if ((property & memoryType.propertyFlags) == 0){
+                    properties = firstProperty ? properties : properties + " | ";
+                    firstProperty = false;
+                    properties += propertyBitStrings[propertyIndex];
+                }
+                propertyIndex++;
+            }
+            std::cout << "              Queue Flags: " << std::hex << properties << std::endl;
             std::cout << "              Queue Count: " << queueFamilyProperties.queueCount << std::endl;
             std::cout << "              Timestamp Valid Bits: " << queueFamilyProperties.timestampValidBits << std::endl;
             std::cout << "              (TODO)Min Image Transfer Granularity: " << std::hex << "" /*queueFamilyProperties.deviceID */<< std::endl;
@@ -276,7 +315,7 @@ void VulkanDriverInstance::setupDevice(uint32_t deviceNumber, bool debugPrint){
             bool firstProperty = true;
             for (auto property : propertyBits){
                 if ((property & memoryType.propertyFlags) == 0){
-                    properties = firstProperty ? properties : properties + ",\n         ";
+                    properties = firstProperty ? properties : properties + " | ";
                     firstProperty = false;
                     properties += propertyBitStrings[propertyIndex];
                 }
@@ -323,7 +362,7 @@ void VulkanDriverInstance::setupDevice(uint32_t deviceNumber, bool debugPrint){
         std::cout << "Extension Name: " << extensionProperties.extensionName << std::endl;
         std::cout << "   Extension Spec Version: " << extensionProperties.specVersion << std::endl;
     }
-    delete[] availableExtensions;
+    // delete[] availableExtensions;
 
     // Create Info
     VkDeviceCreateInfo creationInfo;
