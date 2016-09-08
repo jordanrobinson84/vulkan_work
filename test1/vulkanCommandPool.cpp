@@ -12,6 +12,10 @@ VulkanCommandPool::VulkanCommandPool(VulkanDevice * __deviceContext, VkCommandPo
     assert(deviceContext->vkCreateCommandPool(deviceContext->device, &info, nullptr, &commandPoolHandle) == VK_SUCCESS);
 }
 
+VulkanCommandPool::~VulkanCommandPool(){
+    deviceContext->vkDestroyCommandPool(deviceContext->device, commandPoolHandle, nullptr);
+}
+
 VkCommandBuffer * VulkanCommandPool::getCommandBuffers(VkCommandBufferLevel level, uint32_t commandBufferCount){
     VkCommandBuffer * commandBufferArray = new VkCommandBuffer[commandBufferCount];
 

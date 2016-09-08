@@ -238,6 +238,12 @@ void VulkanDriverInstance::setupDevice(uint32_t deviceNumber, bool debugPrint){
             case VK_PHYSICAL_DEVICE_TYPE_CPU:
                 deviceTypeString = "CPU";
                 break;
+            case VK_PHYSICAL_DEVICE_TYPE_RANGE_SIZE:
+                deviceTypeString = "Range Size";
+                break;
+            case VK_PHYSICAL_DEVICE_TYPE_MAX_ENUM:
+                deviceTypeString = "MAX";
+                break;
         }
         std::cout << "      Device Type: " << deviceTypeString << std::endl;
         std::cout << "      Device Name: " << device.deviceProperties.deviceName << std::endl;
@@ -259,7 +265,7 @@ void VulkanDriverInstance::setupDevice(uint32_t deviceNumber, bool debugPrint){
 
         if (debugPrint){
             std::cout << "          Queue Family " << queueFamily << ": " << std::endl;
-            std::string properties += "";
+            std::string properties = "";
             uint32_t propertyBits[] = { VK_QUEUE_GRAPHICS_BIT, 
                                         VK_QUEUE_COMPUTE_BIT, 
                                         VK_QUEUE_TRANSFER_BIT, 
@@ -273,8 +279,8 @@ void VulkanDriverInstance::setupDevice(uint32_t deviceNumber, bool debugPrint){
             int propertyIndex = 0;
             bool firstProperty = true;
             for (auto property : propertyBits){
-                if ((property & memoryType.propertyFlags) == 0){
-                    properties = firstProperty ? properties : properties + " | ";
+                if ((property & queueFamilyProperties.queueFlags) == 0){
+                    properties = firstProperty ? properties : properties + " |\n                 ";
                     firstProperty = false;
                     properties += propertyBitStrings[propertyIndex];
                 }
@@ -315,7 +321,7 @@ void VulkanDriverInstance::setupDevice(uint32_t deviceNumber, bool debugPrint){
             bool firstProperty = true;
             for (auto property : propertyBits){
                 if ((property & memoryType.propertyFlags) == 0){
-                    properties = firstProperty ? properties : properties + " | ";
+                    properties = firstProperty ? properties : properties + " |\n         ";
                     firstProperty = false;
                     properties += propertyBitStrings[propertyIndex];
                 }

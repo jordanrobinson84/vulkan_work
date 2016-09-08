@@ -40,5 +40,44 @@ int main(){
 
     VulkanBuffer vertexBuffer(deviceContext, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, vertexBufferData, sizeof(float) * 9, false);
 
-    return true;
+    // Get XCB connection
+    xcb_connection_t * connection = xcb_connect (nullptr, nullptr);
+
+    // Get Screen 1
+    const xcb_setup_t * setup               = xcb_get_setup(connection);
+    xcb_screen_iterator_t  screenIterator   = xcb_setup_roots_iterator(setup);
+    xcb_screen_t * screen                   = screenIterator.data;
+
+    // Create window
+    xcb_window_t window = xcb_generate_id(connection);
+    xcb_create_window(connection,
+        XCB_COPY_FROM_PARENT,
+        window,
+        screen->root,
+        0, 0,
+        512, 512,
+        10,
+        XCB_WINDOW_CLASS_INPUT_OUTPUT,
+        screen->root_visual,
+        0, nullptr);
+
+    // Get VkSurfaceKHR
+    VkSurfaceKHR surface;
+    VkXcbSurfaceCreateInfoKHR surfaceCreateInfo;
+    surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR;
+    surfaceCreateInfo.flags = 0;
+    surfaceCreateInfo.connection = connection;
+    surfaceCreateInfo.window = window;
+
+    assert(vkCreateSurfaceKHR(instance.instance, &surfaceCreateInfo, nullptr, &surface) == VK_SUCCESS);
+
+    // Map
+    xcb_map_window(connection, window);
+    xcb_flush(connection);
+
+    // Wait
+    std::cin.get();
+    xcb_disconnect(connection);
+
+    return 0;
 }

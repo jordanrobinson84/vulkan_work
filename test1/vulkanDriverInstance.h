@@ -24,6 +24,7 @@
 #include <dlfcn.h> 
 #include <cassert>
 #include <cstring>
+#include <memory>
 #include "vulkanCommandPool.h"
 
 #define VK_EXPORTED_FUNCTION(function) PFN_##function function

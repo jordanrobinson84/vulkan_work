@@ -1,6 +1,8 @@
 #include <cassert>
 #include "vulkanBuffer.h"
 
+std::shared_ptr<VulkanCommandPool> VulkanBuffer::copyCommandPool;
+
 VulkanBuffer::VulkanBuffer(VulkanDevice * __deviceContext, VkBufferUsageFlags usage, const void * data, const uint32_t dataSize, const bool hostVisible ){
 
     // Set the Device Context
@@ -17,17 +19,6 @@ VulkanBuffer::VulkanBuffer(VulkanDevice * __deviceContext, VkBufferUsageFlags us
     bufferInfo.pQueueFamilyIndices = nullptr;
 
     assert(deviceContext->vkCreateBuffer(deviceContext->device, &bufferInfo, nullptr, &bufferHandle) == VK_SUCCESS);
-
-    // // Buffer View Creation Info
-    // VkBufferViewCreateInfo bufferViewInfo;
-    // bufferViewInfo.sType = VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO;
-    // bufferViewInfo.pNext = nullptr;
-    // bufferViewInfo.flags = 0;
-    // bufferViewInfo.buffer = *buffer;
-    // bufferViewInfo.format = VK_FORMAT_R32G32B32_SFLOAT;
-    // bufferViewInfo.offset = 0;
-    // bufferViewInfo.range = VK_WHOLE_SIZE; // Use the entire buffer
-    // assert(deviceContext->vkCreateBufferView(deviceContext->device, &bufferViewInfo, nullptr, bufferView) == VK_SUCCESS);
 
     // Get Memory Requirements
     deviceContext->vkGetBufferMemoryRequirements(deviceContext->device, bufferHandle, &memoryRequirements);
@@ -55,8 +46,7 @@ VulkanBuffer::VulkanBuffer(VulkanDevice * __deviceContext, VkBufferUsageFlags us
         assert( deviceContext->vkMapMemory(deviceContext->device, bufferMemory, 0, memoryRequirements.size, 0, &bufferData) == VK_SUCCESS);
         assert(bufferData != nullptr);
         memcpy(bufferData, data, dataSize);
-        deviceContext->vkUnmapMemory(deviceContext->device, bufferMemory);
-    
+
         // Flush to make data GPU-visible
         VkMappedMemoryRange hostMemoryRange;
         hostMemoryRange.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
@@ -65,6 +55,7 @@ VulkanBuffer::VulkanBuffer(VulkanDevice * __deviceContext, VkBufferUsageFlags us
         hostMemoryRange.offset = 0;
         hostMemoryRange.size = memoryRequirements.size;
         deviceContext->vkFlushMappedMemoryRanges(deviceContext->device, 1, &hostMemoryRange);
+        deviceContext->vkUnmapMemory(deviceContext->device, bufferMemory);
 
     // Copy from host-mapped buffer to device local buffer
     }else{
@@ -82,7 +73,9 @@ VulkanBuffer::VulkanBuffer(VulkanDevice * __deviceContext, VkBufferUsageFlags us
         int32_t copyQueueFamily = deviceContext->getUsableDeviceQueueFamily(VK_QUEUE_TRANSFER_BIT);
         assert(copyQueueFamily != -1);
 
-        VulkanCommandPool * copyCommandPool = deviceContext->getCommandPool(VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT, copyQueueFamily);
+        if(VulkanBuffer::copyCommandPool == nullptr){
+            VulkanBuffer::copyCommandPool.reset(deviceContext->getCommandPool(VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT, copyQueueFamily));
+        }
         assert(copyCommandPool != nullptr);
         VkCommandBuffer * copyCommandBuffer = copyCommandPool->getCommandBuffers(VK_COMMAND_BUFFER_LEVEL_PRIMARY, 1);
         assert(copyCommandBuffer != nullptr);
@@ -94,25 +87,38 @@ VulkanBuffer::VulkanBuffer(VulkanDevice * __deviceContext, VkBufferUsageFlags us
         cbBeginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
         cbBeginInfo.pInheritanceInfo = nullptr; // Not a secondary command buffer
 
-        deviceContext->vkBeginCommandBuffer(*copyCommandBuffer, &cbBeginInfo);
-        deviceContext->vkCmdCopyBuffer(*copyCommandBuffer, srcBuffer->bufferHandle, bufferHandle, 1, &hostToDeviceCopy);
-        deviceContext->vkEndCommandBuffer(*copyCommandBuffer);
+        deviceContext->vkBeginCommandBuffer(copyCommandBuffer[0], &cbBeginInfo);
+        deviceContext->vkCmdCopyBuffer(copyCommandBuffer[0], srcBuffer->bufferHandle, bufferHandle, 1, &hostToDeviceCopy);
+        deviceContext->vkEndCommandBuffer(copyCommandBuffer[0]);
 
         // Dispatch
         VkQueue copyQueue;
         deviceContext->vkGetDeviceQueue(deviceContext->device, copyQueueFamily, 0, &copyQueue);
         VkSubmitInfo copySubmitInfo;
-        copySubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-        copySubmitInfo.pNext = nullptr;
-        copySubmitInfo.waitSemaphoreCount = 0; // No wait semaphores
-        copySubmitInfo.pWaitSemaphores = nullptr; // No wait semaphores
-        copySubmitInfo.pWaitDstStageMask = nullptr; // No wait semaphores
-        copySubmitInfo.commandBufferCount = 1;
+        copySubmitInfo.sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        copySubmitInfo.pNext                = nullptr;
+        copySubmitInfo.waitSemaphoreCount   = 0; // No wait semaphores
+        copySubmitInfo.pWaitSemaphores      = nullptr; // No wait semaphores
+        copySubmitInfo.pWaitDstStageMask    =   nullptr; // No wait semaphores
+        copySubmitInfo.commandBufferCount   = 1;
+        copySubmitInfo.pCommandBuffers      = copyCommandBuffer;
         copySubmitInfo.signalSemaphoreCount = 0; // No signal semaphores
-        copySubmitInfo.pSignalSemaphores = nullptr; // No signal semaphores
+        copySubmitInfo.pSignalSemaphores    = nullptr; // No signal semaphores
 
-        assert(deviceContext->vkQueueSubmit(copyQueue, 1, &copySubmitInfo, VK_NULL_HANDLE) == VK_SUCCESS);
+        // Fence
+        VkFence copyFence;
+        VkFenceCreateInfo copyFenceInfo;
+        copyFenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+        copyFenceInfo.pNext = nullptr;
+        copyFenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+        assert(deviceContext->vkCreateFence(deviceContext->device, &copyFenceInfo, nullptr, &copyFence) == VK_SUCCESS);
+        assert(deviceContext->vkResetFences(deviceContext->device, 1, &copyFence) == VK_SUCCESS);
 
+        assert(deviceContext->vkQueueSubmit(copyQueue, 1, &copySubmitInfo, copyFence) == VK_SUCCESS);
+        assert(deviceContext->vkWaitForFences(deviceContext->device, 1, &copyFence, VK_TRUE, 0x40000000) == VK_SUCCESS);
+        deviceContext->vkDestroyFence(deviceContext->device, copyFence, nullptr);
+
+        copyCommandPool.reset();
         delete srcBuffer;
     }
 }
