@@ -88,12 +88,12 @@ VulkanDriverInstance::VulkanDriverInstance(std::string applicationName){
         std::vector<VkLayerProperties> layerPropertiesVector(layerCount);
         std::cout << "Found " << layerCount << " layers." << std::endl;
         assert(vkEnumerateInstanceLayerProperties(&layerCount, &layerPropertiesVector[0]) == VK_SUCCESS);
-        for (VkLayerProperties properties : layerPropertiesVector){
+        for (auto properties : layerPropertiesVector){
             std::cout << "Layer Name: " << properties.layerName << std::endl;
             std::cout << "   Layer Spec Version: " << VK_MAJOR_VERSION(properties.specVersion) << "." << VK_MINOR_VERSION(properties.specVersion) << "." << VK_PATCH_VERSION(properties.specVersion) << std::endl;
             std::cout << "   Layer Implementation Version: " << properties.implementationVersion << std::endl;
             std::cout << "   Layer Desription: " << properties.description << std::endl;
-            for (const char* requestedLayer : requestedLayers){
+            for (auto requestedLayer : requestedLayers){
                 if ( strcmp(requestedLayer, properties.layerName) == 0){
                     enabledLayers.push_back(requestedLayer);
                     break;
@@ -119,14 +119,13 @@ VulkanDriverInstance::VulkanDriverInstance(std::string applicationName){
         uint32_t extensionCount = 0;
         assert(vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr) == VK_SUCCESS);
         std::cout << "Found " << extensionCount << " extensions." << std::endl;
-        VkExtensionProperties * availableExtensions = new VkExtensionProperties[extensionCount];
-        assert(vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, availableExtensions) == VK_SUCCESS);
-        for (uint32_t extensionIndex = 0; extensionIndex < extensionCount; extensionIndex++){
-            VkExtensionProperties extensionProperties = availableExtensions[extensionIndex];
+        std::vector<VkExtensionProperties> availableExtensions(extensionCount);
+        assert(vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, &availableExtensions[0]) == VK_SUCCESS);
+        for (auto extensionProperties : availableExtensions){
             std::cout << "Extension Name: " << extensionProperties.extensionName << std::endl;
             std::cout << "   Extension Spec Version: " << extensionProperties.specVersion << std::endl;
 
-            for(const char* requestedExtension : requestedExtensions){
+            for(auto requestedExtension : requestedExtensions){
                 if ( strcmp(requestedExtension, extensionProperties.extensionName) == 0 ){
                     enabledExtensions.push_back(requestedExtension);
                     break;
@@ -138,14 +137,14 @@ VulkanDriverInstance::VulkanDriverInstance(std::string applicationName){
 
 
         VkInstanceCreateInfo instanceCreateInfo;
-        instanceCreateInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-        instanceCreateInfo.pNext = NULL;
-        instanceCreateInfo.flags = 0;
-        instanceCreateInfo.pApplicationInfo = &app;
-        instanceCreateInfo.enabledLayerCount = enabledLayerCount;
-        instanceCreateInfo.ppEnabledLayerNames = &enabledLayers[0];
-        instanceCreateInfo.enabledExtensionCount = enabledExtensionCount;
-        instanceCreateInfo.ppEnabledExtensionNames = &enabledExtensions[0];
+        instanceCreateInfo.sType                    = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+        instanceCreateInfo.pNext                    = NULL;
+        instanceCreateInfo.flags                    = 0;
+        instanceCreateInfo.pApplicationInfo         = &app;
+        instanceCreateInfo.enabledLayerCount        = enabledLayerCount;
+        instanceCreateInfo.ppEnabledLayerNames      = &enabledLayers[0];
+        instanceCreateInfo.enabledExtensionCount    = enabledExtensionCount;
+        instanceCreateInfo.ppEnabledExtensionNames  = &enabledExtensions[0];
 
         // Assert if instance creation failed
         assert (vkCreateInstance(&instanceCreateInfo, nullptr, &instance) == VK_SUCCESS);
@@ -226,11 +225,13 @@ void VulkanDriverInstance::setupDevice(uint32_t deviceNumber, bool debugPrint){
         uint32_t majorVersion = VK_MAJOR_VERSION(device.deviceProperties.apiVersion);
         uint32_t minorVersion = VK_MINOR_VERSION(device.deviceProperties.apiVersion);
         uint32_t patchVersion = VK_PATCH_VERSION(device.deviceProperties.apiVersion);
+
         std::cout << "   Physical Device " << std::hex << deviceNumber << ": " << std::endl;
         std::cout << "      API Version: " << std::dec << majorVersion << "." << minorVersion << "." << patchVersion << std::endl;
         std::cout << "      Driver Version: " << std::hex << device.deviceProperties.driverVersion << std::endl;
         std::cout << "      Vendor ID: " << std::hex << device.deviceProperties.vendorID << std::endl;
         std::cout << "      Device ID: " << std::hex << device.deviceProperties.deviceID << std::endl;
+
         std::string deviceTypeString = ""; 
         switch(device.deviceProperties.deviceType){
             case VK_PHYSICAL_DEVICE_TYPE_OTHER:
@@ -255,6 +256,7 @@ void VulkanDriverInstance::setupDevice(uint32_t deviceNumber, bool debugPrint){
                 deviceTypeString = "MAX";
                 break;
         }
+
         std::cout << "      Device Type: " << deviceTypeString << std::endl;
         std::cout << "      Device Name: " << device.deviceProperties.deviceName << std::endl;
     }
@@ -275,7 +277,7 @@ void VulkanDriverInstance::setupDevice(uint32_t deviceNumber, bool debugPrint){
 
         if (debugPrint){
             std::cout << "          Queue Family " << queueFamily << ": " << std::endl;
-            std::string properties = "";
+            std::string properties  = "";
             uint32_t propertyBits[] = { VK_QUEUE_GRAPHICS_BIT, 
                                         VK_QUEUE_COMPUTE_BIT, 
                                         VK_QUEUE_TRANSFER_BIT, 
@@ -299,7 +301,8 @@ void VulkanDriverInstance::setupDevice(uint32_t deviceNumber, bool debugPrint){
             std::cout << "              Queue Flags: " << std::hex << properties << std::endl;
             std::cout << "              Queue Count: " << queueFamilyProperties.queueCount << std::endl;
             std::cout << "              Timestamp Valid Bits: " << queueFamilyProperties.timestampValidBits << std::endl;
-            std::cout << "              (TODO)Min Image Transfer Granularity: " << std::hex << "" /*queueFamilyProperties.deviceID */<< std::endl;
+            VkExtent3D minTransferGranularity = queueFamilyProperties.minImageTransferGranularity;
+            std::cout << "              Min Image Transfer Granularity: " << std::dec << "(" << minTransferGranularity.width << minTransferGranularity.height << minTransferGranularity.depth << ")" << std::endl;
         }
     }
 
@@ -367,18 +370,23 @@ void VulkanDriverInstance::setupDevice(uint32_t deviceNumber, bool debugPrint){
     }
 
     // Extensions
-    const char* enabledExtensions[] = {"VK_KHR_swapchain"};
-    uint32_t extensionCount = 1;
+    std::vector<const char*> requestedExtensions = {"VK_KHR_swapchain"};
+    std::vector<const char*> enabledExtensions;
+    uint32_t extensionCount = 0;
     assert(vkEnumerateDeviceExtensionProperties(physicalDevices[deviceNumber], nullptr, &extensionCount, nullptr) == VK_SUCCESS);
     std::cout << "Found " << extensionCount << " extensions." << std::endl;
-    VkExtensionProperties * availableExtensions = new VkExtensionProperties[extensionCount];
-    assert(vkEnumerateDeviceExtensionProperties(physicalDevices[deviceNumber], nullptr, &extensionCount, availableExtensions) == VK_SUCCESS);
-    for (uint32_t extensionIndex = 0; extensionIndex < extensionCount; extensionIndex++){
-        VkExtensionProperties extensionProperties = availableExtensions[extensionIndex];
+    std::vector<VkExtensionProperties> availableExtensions(extensionCount);
+    assert(vkEnumerateDeviceExtensionProperties(physicalDevices[deviceNumber], nullptr, &extensionCount, &availableExtensions[0]) == VK_SUCCESS);
+    for (auto extensionProperties : availableExtensions){
         std::cout << "Extension Name: " << extensionProperties.extensionName << std::endl;
         std::cout << "   Extension Spec Version: " << extensionProperties.specVersion << std::endl;
+
+        for (auto requestedExtension : requestedExtensions){
+            if (strcmp(requestedExtension, extensionProperties.extensionName) == 0){
+                enabledExtensions.push_back(requestedExtension);
+            }
+        }
     }
-    // delete[] availableExtensions;
 
     // Create Info
     VkDeviceCreateInfo creationInfo;
