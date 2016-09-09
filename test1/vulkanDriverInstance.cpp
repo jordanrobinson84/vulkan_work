@@ -70,12 +70,12 @@ VulkanDriverInstance::VulkanDriverInstance(std::string applicationName){
     vkGetPhysicalDeviceQueueFamilyProperties        = nullptr;
     vkGetPhysicalDeviceSparseImageFormatProperties  = nullptr;
 
-    loader = dlopen( "libvulkan.so.1", RTLD_NOW);
+    loader = dlopen( "libvulkan.so", RTLD_LOCAL | RTLD_NOW);
 
     if (loader != nullptr){
+        VK_EXPORTED_FUNCTION(vkGetInstanceProcAddr);
         VK_EXPORTED_FUNCTION(vkEnumerateInstanceLayerProperties);
         VK_EXPORTED_FUNCTION(vkEnumerateInstanceExtensionProperties);
-        VK_EXPORTED_FUNCTION(vkGetInstanceProcAddr);
         VK_EXPORTED_FUNCTION(vkGetDeviceProcAddr);
         VK_EXPORTED_FUNCTION(vkCreateInstance);
         VK_EXPORTED_FUNCTION(vkDestroyInstance);
@@ -162,17 +162,7 @@ VulkanDriverInstance::VulkanDriverInstance(std::string applicationName){
         VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceQueueFamilyProperties);
         VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceSparseImageFormatProperties);
 
-        // Window System Integration - need to figure out how to get the dynamic linking to work
-        VK_INSTANCE_FUNCTION(vkCreateSurfaceKHR);
-        VK_INSTANCE_FUNCTION(vkCreateDisplayModeKHR);
-        VK_INSTANCE_FUNCTION(vkCreateDisplayPlaneSurfaceKHR);
-        VK_INSTANCE_FUNCTION(vkDestroySurfaceKHR);
-        VK_INSTANCE_FUNCTION(vkGetDisplayModePropertiesKHR);
-        VK_INSTANCE_FUNCTION(vkGetDisplayPlaneCapabilitiesKHR);
-        VK_INSTANCE_FUNCTION(vkGetDisplayPlaneSupportedDisplaysKHR);
-        VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceDisplayPropertiesKHR);
-        VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceDisplayPlanePropertiesKHR);
-        VK_INSTANCE_FUNCTION(vkGetPhysicalDevicePresentationSupportKHR);
+        // Window System Integration - Most functions are only statically linked
         VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceSurfaceCapabilitiesKHR);
         VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceSurfaceFormatsKHR);
         VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceSurfacePresentModesKHR);
@@ -398,7 +388,7 @@ void VulkanDriverInstance::setupDevice(uint32_t deviceNumber, bool debugPrint){
     creationInfo.enabledLayerCount = 0;
     creationInfo.ppEnabledLayerNames = nullptr;
     creationInfo.enabledExtensionCount = 1;
-    creationInfo.ppEnabledExtensionNames = enabledExtensions;
+    creationInfo.ppEnabledExtensionNames = &enabledExtensions[0];
     creationInfo.pEnabledFeatures = nullptr;
 
     // Create Device

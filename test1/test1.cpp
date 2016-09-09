@@ -69,14 +69,96 @@ int main(){
     surfaceCreateInfo.connection = connection;
     surfaceCreateInfo.window = window;
 
-    assert(instance.vkCreateSurfaceKHR(instance.instance, &surfaceCreateInfo, nullptr, &surface) == VK_SUCCESS);
+    assert(vkCreateSurfaceKHR(instance.instance, &surfaceCreateInfo, nullptr, &surface) == VK_SUCCESS);
 
     // Map
     xcb_map_window(connection, window);
     xcb_flush(connection);
 
+    // Create a swapchain
+    VkSwapchainKHR swapchain;
+
+    // Query Swapchain image format support
+    uint32_t surfaceFormatCount = 0;
+    assert(vkGetPhysicalDeviceSurfaceFormatsKHR(instance.physicalDevices[0], surface, &surfaceFormatCount, nullptr) == VK_SUCCESS);
+    assert(surfaceFormatCount != 0);
+    std::vector<VkSurfaceFormatKHR> surfaceFormats(surfaceFormatCount);
+    assert(vkGetPhysicalDeviceSurfaceFormatsKHR(instance.physicalDevices[0], surface, &surfaceFormatCount, &surfaceFormats[0]) == VK_SUCCESS);
+    std::cout << "Surface Formats: " << std::endl;
+    for(auto surfaceFormat: surfaceFormats){
+        std::cout << "   " << surfaceFormat.format << std::endl;
+    }
+
+    // Query Swapchain present mode support
+    uint32_t presentModeCount = 0;
+    assert(vkGetPhysicalDeviceSurfacePresentModesKHR(instance.physicalDevices[0], surface, &presentModeCount, nullptr) == VK_SUCCESS);
+    assert(presentModeCount != 0);
+    std::vector<VkPresentModeKHR> presentModes(presentModeCount);
+    assert(vkGetPhysicalDeviceSurfacePresentModesKHR(instance.physicalDevices[0], surface, &presentModeCount, &presentModes[0]) == VK_SUCCESS);
+    std::cout << "Present Modes: " << std::endl;
+    for(auto presentMode: presentModes){
+        std::string formatString = "";
+        switch(presentMode){
+            case VK_PRESENT_MODE_IMMEDIATE_KHR:
+                formatString = "VK_PRESENT_MODE_IMMEDIATE_KHR";
+                break;
+            case VK_PRESENT_MODE_MAILBOX_KHR:
+                formatString = "VK_PRESENT_MODE_MAILBOX_KHR";
+                break;
+            case VK_PRESENT_MODE_FIFO_KHR:
+                formatString = "VK_PRESENT_MODE_FIFO_KHR";
+                break;
+            case VK_PRESENT_MODE_FIFO_RELAXED_KHR:
+                formatString = "VK_PRESENT_MODE_FIFO_RELAXED_KHR";
+                break;
+            default:
+                formatString = "INVALID";
+                break;
+        }
+        std::cout << "   " << formatString << std::endl;
+    }
+
+    // Query Swapchain surface capabilities
+    VkSurfaceCapabilitiesKHR surfaceCaps;
+    assert(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(instance.physicalDevices[0], surface, &surfaceCaps) == VK_SUCCESS);
+    VkExtent2D extent;
+    if (surfaceCaps.currentExtent.width < 1 || surfaceCaps.currentExtent.height < 1){
+        extent.width = 512;
+        extent.height = 512;
+    }else{
+        extent = surfaceCaps.currentExtent;
+    }
+
+    // Query surface support
+    VkBool32 surfaceSupported;
+    assert(vkGetPhysicalDeviceSurfaceSupportKHR(instance.physicalDevices[0], 0, surface, &surfaceSupported) == VK_SUCCESS);
+
+    // Swapchain creation info
+    VkSwapchainCreateInfoKHR swapchainCreateInfo;
+    swapchainCreateInfo.sType                   = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+    swapchainCreateInfo.pNext                   = nullptr;
+    swapchainCreateInfo.flags                   = surfaceFormats[0].colorSpace;
+    swapchainCreateInfo.surface                 = surface;
+    swapchainCreateInfo.minImageCount           = surfaceCaps.minImageCount;
+    swapchainCreateInfo.imageFormat             = surfaceFormats[0].format;
+    swapchainCreateInfo.imageColorSpace         = surfaceFormats[0].colorSpace;
+    swapchainCreateInfo.imageExtent             = extent;
+    swapchainCreateInfo.imageArrayLayers        = 1;
+    swapchainCreateInfo.imageUsage              = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    swapchainCreateInfo.imageSharingMode        = VK_SHARING_MODE_EXCLUSIVE;
+    swapchainCreateInfo.queueFamilyIndexCount   = 0; // Not shared
+    swapchainCreateInfo.pQueueFamilyIndices     = nullptr; // Not shared
+    swapchainCreateInfo.preTransform            = surfaceCaps.currentTransform;
+    swapchainCreateInfo.compositeAlpha          = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+    swapchainCreateInfo.presentMode             = presentModes[0];
+    swapchainCreateInfo.clipped                 = VK_TRUE;
+    swapchainCreateInfo.oldSwapchain            = nullptr;
+
+    assert(vkCreateSwapchainKHR(deviceContext->device, &swapchainCreateInfo, nullptr, &swapchain) == VK_SUCCESS);
+
     // Wait
     std::cin.get();
+    vkDestroySwapchainKHR(deviceContext->device, swapchain, nullptr);
     xcb_disconnect(connection);
 
     return 0;
