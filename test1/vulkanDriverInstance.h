@@ -36,6 +36,21 @@ typedef VkQueueFamilyProperties * VkQueueFamilyPropertiesPtr;
 
 class VulkanCommandPool;
 
+
+// TODO
+struct VulkanSwapChain{
+
+    VkSwapchainKHR                  swapchain;
+    std::vector<VkSurfaceFormatKHR> surfaceFormats;
+    std::vector<VkPresentModeKHR>   presentModes;
+    std::vector<VkImage>            swapchainImages;
+    VkSurfaceCapabilitiesKHR        surfaceCaps;
+    VkSemaphore                     presentationSemaphore;
+    VkSemaphore                     renderingDoneSemaphore;
+    VkQueue                         presentationQueue;
+    uint32_t                        swapchainImageIndex;
+};
+
 struct VulkanDevice{
     VulkanDevice() : created(false){};
     int32_t getUsableMemoryType(uint32_t memoryTypeBits, const VkMemoryPropertyFlags requiredProperties);

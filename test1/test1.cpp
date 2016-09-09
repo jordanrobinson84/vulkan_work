@@ -123,8 +123,8 @@ int main(){
     assert(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(instance.physicalDevices[0], surface, &surfaceCaps) == VK_SUCCESS);
     VkExtent2D extent;
     if (surfaceCaps.currentExtent.width < 1 || surfaceCaps.currentExtent.height < 1){
-        extent.width = 512;
-        extent.height = 512;
+        extent.width    = 512;
+        extent.height   = 512;
     }else{
         extent = surfaceCaps.currentExtent;
     }
@@ -132,6 +132,25 @@ int main(){
     // Query surface support
     VkBool32 surfaceSupported;
     assert(vkGetPhysicalDeviceSurfaceSupportKHR(instance.physicalDevices[0], 0, surface, &surfaceSupported) == VK_SUCCESS);
+    assert(surfaceSupported == VK_TRUE);
+
+    // Create presentation semaphore
+    VkSemaphoreCreateInfo presentatonSemaphoreCreateInfo = {
+        VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+        nullptr,
+        0
+    }
+    VkSemaphore presentationSemaphore;
+    assert(vkCreateSemaphore(deviceContext->device, &presentatonSemaphoreCreateInfo, nullptr, &presentationSemaphore) == VK_SUCCESS);
+
+    // Create rendering done semaphore
+    VkSemaphoreCreateInfo renderingDoneSemaphoreCreateInfo = {
+        VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+        nullptr,
+        0
+    }
+    VkSemaphore renderingDoneSemaphore;
+    assert(vkCreateSemaphore(deviceContext->device, &renderingDoneSemaphoreCreateInfo, nullptr, &renderingDoneSemaphore) == VK_SUCCESS);
 
     // Swapchain creation info
     VkSwapchainCreateInfoKHR swapchainCreateInfo;
@@ -155,6 +174,43 @@ int main(){
     swapchainCreateInfo.oldSwapchain            = nullptr;
 
     assert(vkCreateSwapchainKHR(deviceContext->device, &swapchainCreateInfo, nullptr, &swapchain) == VK_SUCCESS);
+
+    // Get Swapchain images (access-controlled)
+    uint32_t swapchainImageCount = 0;
+    assert(vkGetSwapchainImages(deviceContext->device, swapchain, &swapchainImageCount, nullptr) == VK_SUCCESS);
+    assert(swapchainImageCount != 0);
+    std::vector<VkImage> swapchainImages(swapchainImageCount);
+    assert(vkGetSwapchainImages(deviceContext->device, swapchain, &swapchainImageCount, &swapchainImages[0]) == VK_SUCCESS);
+
+    // Get presentation queue
+    int32_t presentationQueueFamily = deviceContext->getUsableDeviceQueueFamily(VK_QUEUE_GRAPHICS_BIT);
+    assert(presentationQueueFamily != -1);
+    VkQueue presentationQueue;
+    assert(deviceContext->vkGetDeviceQueue(deviceContext->device, presentationQueueFamily, 0, &presentationQueue) == VK_SUCCESS);
+
+    // Do rendering
+    // 
+    // 
+
+    // Get the index of the image for rendering
+    uint32_t swapchainImageIndex    = 0xFFFFFFFF;
+    uint32_t acquireTimeout         = 0x1000000; // ~16.7 ms
+    assert(vkAcquireNextImageKHR(deviceContext->device, swapchain, acquireTimeout, presentationSemaphore, VK_NULL_HANDLE, &swapchainImageIndex) == VK_SUCCESS);
+    assert(swapchainImageIndex != 0xFFFFFFFF);
+
+    // Present
+    VkResult presentResult;
+    VkPresentInfoKHR presentInfo = {
+        VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+        nullptr,
+        &renderingDoneSemaphore,
+        1,
+        &swapchain,
+        &swapchainImageIndex,
+        &presentResult
+    }
+
+    assert(vkQueuePresentKHR(presentationQueue, &presentInfo) == VK_SUCCESS);
 
     // Wait
     std::cin.get();
