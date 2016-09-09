@@ -69,7 +69,7 @@ int main(){
     surfaceCreateInfo.connection = connection;
     surfaceCreateInfo.window = window;
 
-    assert(vkCreateSurfaceKHR(instance.instance, &surfaceCreateInfo, nullptr, &surface) == VK_SUCCESS);
+    assert(instance.vkCreateSurfaceKHR(instance.instance, &surfaceCreateInfo, nullptr, &surface) == VK_SUCCESS);
 
     // Map
     xcb_map_window(connection, window);

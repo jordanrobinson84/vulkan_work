@@ -163,7 +163,17 @@ VulkanDriverInstance::VulkanDriverInstance(std::string applicationName){
         VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceQueueFamilyProperties);
         VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceSparseImageFormatProperties);
 
-        // Window System Integration
+        // Window System Integration - need to figure out how to get the dynamic linking to work
+        VK_INSTANCE_FUNCTION(vkCreateSurfaceKHR);
+        VK_INSTANCE_FUNCTION(vkCreateDisplayModeKHR);
+        VK_INSTANCE_FUNCTION(vkCreateDisplayPlaneSurfaceKHR);
+        VK_INSTANCE_FUNCTION(vkDestroySurfaceKHR);
+        VK_INSTANCE_FUNCTION(vkGetDisplayModePropertiesKHR);
+        VK_INSTANCE_FUNCTION(vkGetDisplayPlaneCapabilitiesKHR);
+        VK_INSTANCE_FUNCTION(vkGetDisplayPlaneSupportedDisplaysKHR);
+        VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceDisplayPropertiesKHR);
+        VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceDisplayPlanePropertiesKHR);
+        VK_INSTANCE_FUNCTION(vkGetPhysicalDevicePresentationSupportKHR);
         VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceSurfaceCapabilitiesKHR);
         VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceSurfaceFormatsKHR);
         VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceSurfacePresentModesKHR);
