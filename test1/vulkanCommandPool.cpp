@@ -36,9 +36,9 @@ void VulkanCommandPool::freeCommandBuffers(uint32_t commandBufferCount, const Vk
     delete[] commandBuffers;
 }
 
-// void VulkanCommandPool::resetCommandBuffer(VkCommandBuffer commandBuffer, VkCommandBufferResetFlags flags){
-//     assert(deviceContext->vkResetCommandBuffer(commandBuffer, flags) == VK_SUCCESS);
-// }
+void VulkanCommandPool::resetCommandBuffer(VkCommandBuffer commandBuffer, VkCommandBufferResetFlags flags){
+    assert(deviceContext->vkResetCommandBuffer(commandBuffer, flags) == VK_SUCCESS);
+}
 
 void VulkanCommandPool::resetCommandPool(VkCommandPoolResetFlags flags){
     assert(deviceContext->vkResetCommandPool(deviceContext->device, commandPoolHandle, flags) == VK_SUCCESS);

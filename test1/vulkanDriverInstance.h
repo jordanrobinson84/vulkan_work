@@ -19,6 +19,7 @@
 #include <vulkan/vk_platform.h>
 #include <vulkan/vk_sdk_platform.h>
 #include <vulkan/vulkan.h>
+#include <vulkan/vk_icd.h>
 #include <vector>
 #include <iostream>
 #include <dlfcn.h> 
@@ -35,21 +36,6 @@
 typedef VkQueueFamilyProperties * VkQueueFamilyPropertiesPtr;
 
 class VulkanCommandPool;
-
-
-// TODO
-struct VulkanSwapChain{
-
-    VkSwapchainKHR                  swapchain;
-    std::vector<VkSurfaceFormatKHR> surfaceFormats;
-    std::vector<VkPresentModeKHR>   presentModes;
-    std::vector<VkImage>            swapchainImages;
-    VkSurfaceCapabilitiesKHR        surfaceCaps;
-    VkSemaphore                     presentationSemaphore;
-    VkSemaphore                     renderingDoneSemaphore;
-    VkQueue                         presentationQueue;
-    uint32_t                        swapchainImageIndex;
-};
 
 struct VulkanDevice{
     VulkanDevice() : created(false){};
@@ -191,6 +177,7 @@ struct VulkanDevice{
     VK_DEVICE_FUNCTION(vkMergePipelineCaches);
 
     // Reset
+    VK_DEVICE_FUNCTION(vkResetCommandBuffer);
     VK_DEVICE_FUNCTION(vkResetCommandPool);
     VK_DEVICE_FUNCTION(vkResetDescriptorPool);
     VK_DEVICE_FUNCTION(vkResetEvent);
@@ -255,6 +242,7 @@ public:
     VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceSurfaceCapabilitiesKHR);
     VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceSurfaceFormatsKHR);
     VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceSurfacePresentModesKHR);
+    VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceSurfaceSupportKHR);
 };
 
 #undef VK_EXPORTED_FUNCTION

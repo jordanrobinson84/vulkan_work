@@ -2,6 +2,7 @@
 #include <cassert>
 #include "vulkanDriverInstance.h"
 #include "vulkanBuffer.h"
+#include "vulkanSwapchain.h"
 
 int main(){
     VulkanDriverInstance instance("Linux");
@@ -61,6 +62,10 @@ int main(){
         screen->root_visual,
         0, nullptr);
 
+    // Map
+    xcb_map_window(connection, window);
+    xcb_flush(connection);
+
     // Get VkSurfaceKHR
     VkSurfaceKHR surface;
     VkXcbSurfaceCreateInfoKHR surfaceCreateInfo;
@@ -71,150 +76,53 @@ int main(){
 
     assert(vkCreateSurfaceKHR(instance.instance, &surfaceCreateInfo, nullptr, &surface) == VK_SUCCESS);
 
-    // Map
-    xcb_map_window(connection, window);
-    xcb_flush(connection);
-
-    // Create a swapchain
-    VkSwapchainKHR swapchain;
-
-    // Query Swapchain image format support
-    uint32_t surfaceFormatCount = 0;
-    assert(vkGetPhysicalDeviceSurfaceFormatsKHR(instance.physicalDevices[0], surface, &surfaceFormatCount, nullptr) == VK_SUCCESS);
-    assert(surfaceFormatCount != 0);
-    std::vector<VkSurfaceFormatKHR> surfaceFormats(surfaceFormatCount);
-    assert(vkGetPhysicalDeviceSurfaceFormatsKHR(instance.physicalDevices[0], surface, &surfaceFormatCount, &surfaceFormats[0]) == VK_SUCCESS);
-    std::cout << "Surface Formats: " << std::endl;
-    for(auto surfaceFormat: surfaceFormats){
-        std::cout << "   " << surfaceFormat.format << std::endl;
-    }
-
-    // Query Swapchain present mode support
-    uint32_t presentModeCount = 0;
-    assert(vkGetPhysicalDeviceSurfacePresentModesKHR(instance.physicalDevices[0], surface, &presentModeCount, nullptr) == VK_SUCCESS);
-    assert(presentModeCount != 0);
-    std::vector<VkPresentModeKHR> presentModes(presentModeCount);
-    assert(vkGetPhysicalDeviceSurfacePresentModesKHR(instance.physicalDevices[0], surface, &presentModeCount, &presentModes[0]) == VK_SUCCESS);
-    std::cout << "Present Modes: " << std::endl;
-    for(auto presentMode: presentModes){
-        std::string formatString = "";
-        switch(presentMode){
-            case VK_PRESENT_MODE_IMMEDIATE_KHR:
-                formatString = "VK_PRESENT_MODE_IMMEDIATE_KHR";
-                break;
-            case VK_PRESENT_MODE_MAILBOX_KHR:
-                formatString = "VK_PRESENT_MODE_MAILBOX_KHR";
-                break;
-            case VK_PRESENT_MODE_FIFO_KHR:
-                formatString = "VK_PRESENT_MODE_FIFO_KHR";
-                break;
-            case VK_PRESENT_MODE_FIFO_RELAXED_KHR:
-                formatString = "VK_PRESENT_MODE_FIFO_RELAXED_KHR";
-                break;
-            default:
-                formatString = "INVALID";
-                break;
-        }
-        std::cout << "   " << formatString << std::endl;
-    }
-
-    // Query Swapchain surface capabilities
-    VkSurfaceCapabilitiesKHR surfaceCaps;
-    assert(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(instance.physicalDevices[0], surface, &surfaceCaps) == VK_SUCCESS);
-    VkExtent2D extent;
-    if (surfaceCaps.currentExtent.width < 1 || surfaceCaps.currentExtent.height < 1){
-        extent.width    = 512;
-        extent.height   = 512;
-    }else{
-        extent = surfaceCaps.currentExtent;
-    }
-
-    // Query surface support
-    VkBool32 surfaceSupported;
-    assert(vkGetPhysicalDeviceSurfaceSupportKHR(instance.physicalDevices[0], 0, surface, &surfaceSupported) == VK_SUCCESS);
-    assert(surfaceSupported == VK_TRUE);
-
-    // Create presentation semaphore
-    VkSemaphoreCreateInfo presentatonSemaphoreCreateInfo = {
-        VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
-        nullptr,
-        0
-    }
-    VkSemaphore presentationSemaphore;
-    assert(vkCreateSemaphore(deviceContext->device, &presentatonSemaphoreCreateInfo, nullptr, &presentationSemaphore) == VK_SUCCESS);
-
-    // Create rendering done semaphore
-    VkSemaphoreCreateInfo renderingDoneSemaphoreCreateInfo = {
-        VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
-        nullptr,
-        0
-    }
-    VkSemaphore renderingDoneSemaphore;
-    assert(vkCreateSemaphore(deviceContext->device, &renderingDoneSemaphoreCreateInfo, nullptr, &renderingDoneSemaphore) == VK_SUCCESS);
-
-    // Swapchain creation info
-    VkSwapchainCreateInfoKHR swapchainCreateInfo;
-    swapchainCreateInfo.sType                   = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-    swapchainCreateInfo.pNext                   = nullptr;
-    swapchainCreateInfo.flags                   = surfaceFormats[0].colorSpace;
-    swapchainCreateInfo.surface                 = surface;
-    swapchainCreateInfo.minImageCount           = surfaceCaps.minImageCount;
-    swapchainCreateInfo.imageFormat             = surfaceFormats[0].format;
-    swapchainCreateInfo.imageColorSpace         = surfaceFormats[0].colorSpace;
-    swapchainCreateInfo.imageExtent             = extent;
-    swapchainCreateInfo.imageArrayLayers        = 1;
-    swapchainCreateInfo.imageUsage              = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-    swapchainCreateInfo.imageSharingMode        = VK_SHARING_MODE_EXCLUSIVE;
-    swapchainCreateInfo.queueFamilyIndexCount   = 0; // Not shared
-    swapchainCreateInfo.pQueueFamilyIndices     = nullptr; // Not shared
-    swapchainCreateInfo.preTransform            = surfaceCaps.currentTransform;
-    swapchainCreateInfo.compositeAlpha          = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-    swapchainCreateInfo.presentMode             = presentModes[0];
-    swapchainCreateInfo.clipped                 = VK_TRUE;
-    swapchainCreateInfo.oldSwapchain            = nullptr;
-
-    assert(vkCreateSwapchainKHR(deviceContext->device, &swapchainCreateInfo, nullptr, &swapchain) == VK_SUCCESS);
-
-    // Get Swapchain images (access-controlled)
-    uint32_t swapchainImageCount = 0;
-    assert(vkGetSwapchainImages(deviceContext->device, swapchain, &swapchainImageCount, nullptr) == VK_SUCCESS);
-    assert(swapchainImageCount != 0);
-    std::vector<VkImage> swapchainImages(swapchainImageCount);
-    assert(vkGetSwapchainImages(deviceContext->device, swapchain, &swapchainImageCount, &swapchainImages[0]) == VK_SUCCESS);
-
-    // Get presentation queue
-    int32_t presentationQueueFamily = deviceContext->getUsableDeviceQueueFamily(VK_QUEUE_GRAPHICS_BIT);
-    assert(presentationQueueFamily != -1);
-    VkQueue presentationQueue;
-    assert(deviceContext->vkGetDeviceQueue(deviceContext->device, presentationQueueFamily, 0, &presentationQueue) == VK_SUCCESS);
+    std::vector<uint32_t> queueFamilyIndices = {0};
+    VulkanSwapchain swapchain(&instance, deviceContext, instance.physicalDevices[0], surface, queueFamilyIndices);
 
     // Do rendering
-    // 
-    // 
+    VulkanCommandPool * renderPool      = deviceContext->getCommandPool(VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT, queueFamilyIndices[0]);
+    VkCommandBuffer * cmdBuffer         = renderPool->getCommandBuffers(VK_COMMAND_BUFFER_LEVEL_PRIMARY, 1);
 
-    // Get the index of the image for rendering
-    uint32_t swapchainImageIndex    = 0xFFFFFFFF;
-    uint32_t acquireTimeout         = 0x1000000; // ~16.7 ms
-    assert(vkAcquireNextImageKHR(deviceContext->device, swapchain, acquireTimeout, presentationSemaphore, VK_NULL_HANDLE, &swapchainImageIndex) == VK_SUCCESS);
-    assert(swapchainImageIndex != 0xFFFFFFFF);
-
-    // Present
-    VkResult presentResult;
-    VkPresentInfoKHR presentInfo = {
-        VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+    // Create render pass
+    VkAttachmentDescription defaultAttachment = {
+        VK_ATTACHMENT_DESCRIPTION_MAY_ALIAS_BIT,
+        swapchain.surfaceFormats[0].format,
+        VK_SAMPLE_COUNT_1_BIT,
+        VK_ATTACHMENT_LOAD_OP_LOAD,
+        VK_ATTACHMENT_STORE_OP_STORE,
+        VK_ATTACHMENT_LOAD_OP_LOAD,
+        VK_ATTACHMENT_STORE_OP_STORE,
+        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+    };
+    VkRenderPassCreateInfo renderPassCreateInfo = {
+        VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
         nullptr,
-        &renderingDoneSemaphore,
+        0,
         1,
-        &swapchain,
-        &swapchainImageIndex,
-        &presentResult
-    }
+        &defaultAttachment,
+        0,
+        nullptr, // Need to fill in subpass
+        0,
+        nullptr
+    };
+    VkRenderPass renderPass;
+    assert(deviceContext->vkCreateRenderPass(deviceContext->device, &renderPassCreateInfo, nullptr, &renderPass) == VK_SUCCESS);
 
-    assert(vkQueuePresentKHR(presentationQueue, &presentInfo) == VK_SUCCESS);
+    VkCommandBufferBeginInfo cmdBufferBeginInfo = {
+        VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+        nullptr,
+        0,
+        nullptr
+    };
+    assert( deviceContext->vkBeginCommandBuffer(cmdBuffer[0], &cmdBufferBeginInfo) == VK_SUCCESS);
+    swapchain.setupSwapchain(cmdBuffer[0], renderPass);
 
     // Wait
     std::cin.get();
-    vkDestroySwapchainKHR(deviceContext->device, swapchain, nullptr);
+    // vkDestroySwapchainKHR(deviceContext->device, swapchain, nullptr);
+    delete renderPool;
+    deviceContext->vkDestroyRenderPass(deviceContext->device, renderPass, nullptr);
     xcb_disconnect(connection);
 
     return 0;
