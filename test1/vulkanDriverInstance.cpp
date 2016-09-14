@@ -1,10 +1,10 @@
 #include <cassert>
 #include "vulkanDriverInstance.h"
 
-#define VK_EXPORTED_FUNCTION(function) function = (PFN_##function)dlsym(loader, #function); assert( function != nullptr)
-#define VK_GLOBAL_FUNCTION(function) function = (PFN_##function)( vkGetInstanceProcAddr( nullptr, #function)); assert( function != nullptr)
-#define VK_INSTANCE_FUNCTION(function) function = (PFN_##function)( vkGetInstanceProcAddr( instance, #function)); assert( function != nullptr)
-#define VK_DEVICE_FUNCTION(function) devices[deviceNumber].function = (PFN_##function)( vkGetDeviceProcAddr( devices[deviceNumber].device, #function)); assert( devices[deviceNumber].function != nullptr)
+#define VK_EXPORTED_FUNCTION(function) function = (PFN_##function)dlsym(loader, #function ); assert( function != nullptr);
+#define VK_GLOBAL_FUNCTION(function) function = (PFN_##function)( vkGetInstanceProcAddr( nullptr, #function )); assert( function != nullptr);
+#define VK_INSTANCE_FUNCTION(function) function = (PFN_##function)( vkGetInstanceProcAddr( instance, macrostr(function) )); assert( function != nullptr);
+#define VK_DEVICE_FUNCTION(function) devices[deviceNumber].function = (PFN_##function)( vkGetDeviceProcAddr( devices[deviceNumber].device, #function )); assert( devices[deviceNumber].function != nullptr);
 
 VulkanCommandPool * VulkanDevice::getCommandPool(VkCommandPoolCreateFlags flags, uint32_t queueFamilyIndex){
     VulkanCommandPool * commandPool = new VulkanCommandPool(this, flags, queueFamilyIndex);
@@ -43,138 +43,122 @@ int32_t VulkanDevice::getUsableDeviceQueueFamily(const VkQueueFlags requiredProp
 }
 
 VulkanDriverInstance::VulkanDriverInstance(std::string applicationName){
-    // OS not used yet
-    loader                                          = nullptr;
-    //Exported functions
-    instance                                        = nullptr;
-    vkGetInstanceProcAddr                           = nullptr;
-    vkCreateInstance                                = nullptr;
-
-    // Instance variables and functions
     numPhysicalDevices                              = 0;
-    vkCreateDevice                                  = nullptr;
-    vkDestroyDevice                                 = nullptr;
-    vkEnumerateInstanceLayerProperties              = nullptr;
-    vkEnumerateInstanceExtensionProperties          = nullptr;
-    vkEnumeratePhysicalDevices                      = nullptr;
-    vkGetPhysicalDeviceFeatures                     = nullptr;
-    vkGetPhysicalDeviceFormatProperties             = nullptr;
-    vkGetPhysicalDeviceImageFormatProperties        = nullptr;
-    vkGetPhysicalDeviceMemoryProperties             = nullptr;
-    vkGetPhysicalDeviceProperties                   = nullptr;
-    vkGetPhysicalDeviceQueueFamilyProperties        = nullptr;
-    vkGetPhysicalDeviceSparseImageFormatProperties  = nullptr;
 
-    loader = dlopen( "libvulkan.so", RTLD_LOCAL | RTLD_NOW);
+    loader = dlopen( "libvulkan.so.1", RTLD_NOW | RTLD_LOCAL);
 
-    if (loader != nullptr){
-        VK_EXPORTED_FUNCTION(vkGetInstanceProcAddr);
-        VK_GLOBAL_FUNCTION(vkEnumerateInstanceLayerProperties);
-        VK_GLOBAL_FUNCTION(vkEnumerateInstanceExtensionProperties);
-        VK_GLOBAL_FUNCTION(vkCreateInstance);
+    assert(loader != nullptr);
 
-        // Enable layers
-        std::vector<const char*> requestedLayers = {"VK_LAYER_LUNARG_core_validation", "VK_LAYER_LUNARG_image", "VK_LAYER_LUNARG_object_tracker", "VK_LAYER_LUNARG_parameter_validation", "VK_LAYER_LUNARG_swapchain"};
-        std::vector<const char*> enabledLayers;
-        uint32_t layerCount = 0;
-        assert(vkEnumerateInstanceLayerProperties(&layerCount, nullptr) == VK_SUCCESS);
-        std::vector<VkLayerProperties> layerPropertiesVector(layerCount);
-        std::cout << "Found " << layerCount << " layers." << std::endl;
-        assert(vkEnumerateInstanceLayerProperties(&layerCount, &layerPropertiesVector[0]) == VK_SUCCESS);
-        for (auto properties : layerPropertiesVector){
-            std::cout << "Layer Name: " << properties.layerName << std::endl;
-            std::cout << "   Layer Spec Version: " << VK_VERSION_MAJOR(properties.specVersion) << "." << VK_VERSION_MINOR(properties.specVersion) << "." << VK_VERSION_PATCH(properties.specVersion) << std::endl;
-            std::cout << "   Layer Implementation Version: " << properties.implementationVersion << std::endl;
-            std::cout << "   Layer Desription: " << properties.description << std::endl;
-            for (auto requestedLayer : requestedLayers){
-                if ( strcmp(requestedLayer, properties.layerName) == 0){
-                    enabledLayers.push_back(requestedLayer);
-                    break;
-                }
+    VK_EXPORTED_FUNCTION(vkGetInstanceProcAddr);
+    VK_EXPORTED_FUNCTION(vkEnumerateInstanceLayerProperties);
+    VK_EXPORTED_FUNCTION(vkEnumerateInstanceExtensionProperties);
+    VK_EXPORTED_FUNCTION(vkCreateInstance);
+
+    // Enable layers
+    std::vector<const char*> requestedLayers = {"VK_LAYER_LUNARG_core_validation", "VK_LAYER_LUNARG_image", "VK_LAYER_LUNARG_object_tracker", "VK_LAYER_LUNARG_parameter_validation", "VK_LAYER_LUNARG_swapchain"};
+    std::vector<const char*> enabledLayers;
+    uint32_t layerCount = 0;
+    assert(vkEnumerateInstanceLayerProperties(&layerCount, nullptr) == VK_SUCCESS);
+    std::vector<VkLayerProperties> layerPropertiesVector(layerCount);
+    std::cout << "Found " << layerCount << " layers." << std::endl;
+    assert(vkEnumerateInstanceLayerProperties(&layerCount, &layerPropertiesVector[0]) == VK_SUCCESS);
+    for (auto properties : layerPropertiesVector){
+        std::cout << "Layer Name: " << properties.layerName << std::endl;
+        std::cout << "   Layer Spec Version: " << VK_VERSION_MAJOR(properties.specVersion) << "." << VK_VERSION_MINOR(properties.specVersion) << "." << VK_VERSION_PATCH(properties.specVersion) << std::endl;
+        std::cout << "   Layer Implementation Version: " << properties.implementationVersion << std::endl;
+        std::cout << "   Layer Desription: " << properties.description << std::endl;
+        for (auto requestedLayer : requestedLayers){
+            if ( strcmp(requestedLayer, properties.layerName) == 0){
+                enabledLayers.push_back(requestedLayer);
+                break;
             }
         }
-        uint32_t enabledLayerCount = enabledLayers.size();
-
-        // Create the instance
-        assert (vkCreateInstance != nullptr);
-        VkApplicationInfo app;
-        app.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-        app.pNext = NULL;
-        app.pApplicationName = applicationName.c_str();
-        app.applicationVersion = 0;
-        app.pEngineName = applicationName.c_str();
-        app.engineVersion = 0;
-        app.apiVersion = VK_MAKE_VERSION(1, 0, 13); // Use version supported by NVIDIA
-
-        // Extensions
-        std::vector<const char*> requestedExtensions    = {VK_KHR_XCB_SURFACE_EXTENSION_NAME, VK_KHR_SURFACE_EXTENSION_NAME};
-        std::vector<const char*> requiredExtensions     = {VK_KHR_XCB_SURFACE_EXTENSION_NAME, VK_KHR_SURFACE_EXTENSION_NAME};
-        std::vector<const char*> enabledExtensions;
-        uint32_t requiredExtensionsFound = 0;
-        uint32_t extensionCount = 0;
-        assert(vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr) == VK_SUCCESS);
-        std::cout << "Found " << extensionCount << " extensions." << std::endl;
-        std::vector<VkExtensionProperties> availableExtensions(extensionCount);
-        assert(vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, &availableExtensions[0]) == VK_SUCCESS);
-        for (auto extensionProperties : availableExtensions){
-            std::cout << "Extension Name: " << extensionProperties.extensionName << std::endl;
-            std::cout << "   Extension Spec Version: " << extensionProperties.specVersion << std::endl;
-
-            for(auto requestedExtension : requestedExtensions){
-                if ( strcmp(requestedExtension, extensionProperties.extensionName) == 0 ){
-                    enabledExtensions.push_back(requestedExtension);
-                    break;
-                }
-            }
-
-            for(auto requiredExtension : requiredExtensions){
-                if ( strcmp(requiredExtension, extensionProperties.extensionName) == 0 ){
-                    requiredExtensionsFound++;
-                    break;
-                }
-            }
-        }
-        uint32_t enabledExtensionCount = enabledExtensions.size();
-        // Ensure that all required extensions were found
-        assert( requiredExtensionsFound == requiredExtensions.size() );
-
-        // Instance creation info
-        VkInstanceCreateInfo instanceCreateInfo;
-        instanceCreateInfo.sType                    = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-        instanceCreateInfo.pNext                    = nullptr;
-        instanceCreateInfo.flags                    = 0;
-        instanceCreateInfo.pApplicationInfo         = &app;
-        instanceCreateInfo.enabledLayerCount        = enabledLayerCount;
-        instanceCreateInfo.ppEnabledLayerNames      = &enabledLayers[0];
-        instanceCreateInfo.enabledExtensionCount    = enabledExtensionCount;
-        instanceCreateInfo.ppEnabledExtensionNames  = &enabledExtensions[0];
-
-        // Assert if instance creation failed
-        assert (vkCreateInstance(&instanceCreateInfo, nullptr, &instance) == VK_SUCCESS);
-
-        // Enumerate instance function pointers
-        VK_INSTANCE_FUNCTION(vkGetDeviceProcAddr);
-        VK_INSTANCE_FUNCTION(vkDestroyInstance);
-        VK_INSTANCE_FUNCTION(vkCreateDevice);
-        VK_INSTANCE_FUNCTION(vkDestroyDevice);
-        VK_INSTANCE_FUNCTION(vkEnumeratePhysicalDevices);
-        VK_INSTANCE_FUNCTION(vkEnumerateDeviceExtensionProperties);
-        VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceFeatures);
-        VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceFormatProperties);
-        VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceImageFormatProperties);
-        VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceMemoryProperties);
-        VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceProperties);
-        VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceQueueFamilyProperties);
-        VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceSparseImageFormatProperties);
-
-        // Window System Integration - Most functions are only statically linked
-        VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceSurfaceCapabilitiesKHR);
-        VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceSurfaceFormatsKHR);
-        VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceSurfacePresentModesKHR);
-        VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceSurfaceSupportKHR);
-
-        enumeratePhysicalDevices();
     }
+    uint32_t enabledLayerCount = enabledLayers.size();
+
+    // Create the instance
+    assert (vkCreateInstance != nullptr);
+    VkApplicationInfo app;
+    app.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+    app.pNext = NULL;
+    app.pApplicationName = applicationName.c_str();
+    app.applicationVersion = 0;
+    app.pEngineName = applicationName.c_str();
+    app.engineVersion = 0;
+    app.apiVersion = VK_API_VERSION_1_0; // Use version supported by NVIDIA
+
+    // Extensions
+    std::vector<const char*> requestedExtensions    = {VK_KHR_XCB_SURFACE_EXTENSION_NAME, VK_KHR_SURFACE_EXTENSION_NAME};
+    std::vector<const char*> requiredExtensions     = {VK_KHR_XCB_SURFACE_EXTENSION_NAME, VK_KHR_SURFACE_EXTENSION_NAME};
+    std::vector<const char*> enabledExtensions;
+    uint32_t requiredExtensionsFound = 0;
+    uint32_t extensionCount = 0;
+    assert(vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr) == VK_SUCCESS);
+    std::cout << "Found " << extensionCount << " extensions." << std::endl;
+    std::vector<VkExtensionProperties> availableExtensions(extensionCount);
+    assert(vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, &availableExtensions[0]) == VK_SUCCESS);
+    for (auto extensionProperties : availableExtensions){
+        std::cout << "Extension Name: " << extensionProperties.extensionName << std::endl;
+        std::cout << "   Extension Spec Version: " << extensionProperties.specVersion << std::endl;
+
+        for(auto requestedExtension : requestedExtensions){
+            if ( strcmp(requestedExtension, extensionProperties.extensionName) == 0 ){
+                enabledExtensions.push_back(requestedExtension);
+                break;
+            }
+        }
+
+        for(auto requiredExtension : requiredExtensions){
+            if ( strcmp(requiredExtension, extensionProperties.extensionName) == 0 ){
+                requiredExtensionsFound++;
+                break;
+            }
+        }
+    }
+    uint32_t enabledExtensionCount = enabledExtensions.size();
+    // Ensure that all required extensions were found
+    assert( requiredExtensionsFound == requiredExtensions.size() );
+
+    // Instance creation info
+    VkInstanceCreateInfo instanceCreateInfo;
+    instanceCreateInfo.sType                    = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+    instanceCreateInfo.pNext                    = nullptr;
+    instanceCreateInfo.flags                    = 0;
+    instanceCreateInfo.pApplicationInfo         = &app;
+    instanceCreateInfo.enabledLayerCount        = enabledLayerCount;
+    instanceCreateInfo.ppEnabledLayerNames      = &enabledLayers[0];
+    instanceCreateInfo.enabledExtensionCount    = enabledExtensionCount;
+    instanceCreateInfo.ppEnabledExtensionNames  = &enabledExtensions[0];
+
+    // Assert if instance creation failed
+    assert (vkCreateInstance(&instanceCreateInfo, nullptr, &instance) == VK_SUCCESS);
+    assert (instance != VK_NULL_HANDLE);
+
+    // Enumerate instance function pointers
+    VK_INSTANCE_FUNCTION(vkGetDeviceProcAddr);
+    VK_INSTANCE_FUNCTION(vkDestroyInstance);
+    VK_INSTANCE_FUNCTION(vkCreateDevice);
+    VK_INSTANCE_FUNCTION(vkDestroyDevice);
+    VK_INSTANCE_FUNCTION(vkEnumeratePhysicalDevices);
+    VK_INSTANCE_FUNCTION(vkEnumerateDeviceExtensionProperties);
+    VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceFeatures);
+    VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceFormatProperties);
+    VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceImageFormatProperties);
+    VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceMemoryProperties);
+    VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceProperties);
+    VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceQueueFamilyProperties);
+    VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceSparseImageFormatProperties);
+
+    // Window System Integration
+    VK_INSTANCE_FUNCTION(vkCreateSurfaceKHR);
+    VK_INSTANCE_FUNCTION(vkDestroySurfaceKHR);
+    VK_INSTANCE_FUNCTION(vkGetPhysicalDevicePresentationSupportKHR);
+    VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceSurfaceCapabilitiesKHR);
+    VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceSurfaceFormatsKHR);
+    VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceSurfacePresentModesKHR);
+    VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceSurfaceSupportKHR);
+
+    enumeratePhysicalDevices();
 }
 
 VulkanDriverInstance::~VulkanDriverInstance(){
@@ -535,6 +519,13 @@ void VulkanDriverInstance::setupDevice(uint32_t deviceNumber, bool debugPrint){
     VK_DEVICE_FUNCTION(vkUnmapMemory);
     VK_DEVICE_FUNCTION(vkUpdateDescriptorSets);
     VK_DEVICE_FUNCTION(vkWaitForFences);
+
+    // Extensions
+    VK_DEVICE_FUNCTION(vkCreateSwapchainKHR);
+    VK_DEVICE_FUNCTION(vkDestroySwapchainKHR);
+    VK_DEVICE_FUNCTION(vkGetSwapchainImagesKHR);
+    VK_DEVICE_FUNCTION(vkAcquireNextImageKHR);
+    VK_DEVICE_FUNCTION(vkQueuePresentKHR);
 
     // Set created flag
     devices[deviceNumber].created = true;

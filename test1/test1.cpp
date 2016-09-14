@@ -74,7 +74,7 @@ int main(){
     surfaceCreateInfo.connection = connection;
     surfaceCreateInfo.window = window;
 
-    assert(vkCreateSurfaceKHR(instance.instance, &surfaceCreateInfo, nullptr, &surface) == VK_SUCCESS);
+    assert(instance.vkCreateSurfaceKHR(instance.instance, &surfaceCreateInfo, nullptr, &surface) == VK_SUCCESS);
 
     std::vector<uint32_t> queueFamilyIndices = {0};
     VulkanSwapchain swapchain(&instance, deviceContext, instance.physicalDevices[0], surface, queueFamilyIndices);

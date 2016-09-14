@@ -33,6 +33,10 @@
 #define VK_INSTANCE_FUNCTION(function) PFN_##function function
 #define VK_DEVICE_FUNCTION(function) PFN_##function function
 
+// Fix stringification of macros
+#define macrostr(a) str(a)
+#define str(a) #a
+
 typedef VkQueueFamilyProperties * VkQueueFamilyPropertiesPtr;
 
 class VulkanCommandPool;
@@ -187,6 +191,13 @@ struct VulkanDevice{
     VK_DEVICE_FUNCTION(vkUnmapMemory);
     VK_DEVICE_FUNCTION(vkUpdateDescriptorSets);
     VK_DEVICE_FUNCTION(vkWaitForFences);
+
+    // Extensions
+    VK_DEVICE_FUNCTION(vkCreateSwapchainKHR);
+    VK_DEVICE_FUNCTION(vkDestroySwapchainKHR);
+    VK_DEVICE_FUNCTION(vkGetSwapchainImagesKHR);
+    VK_DEVICE_FUNCTION(vkAcquireNextImageKHR);
+    VK_DEVICE_FUNCTION(vkQueuePresentKHR);
 };
 
 
@@ -230,14 +241,7 @@ public:
 
     // Window System Integration
     VK_INSTANCE_FUNCTION(vkCreateSurfaceKHR);
-    VK_INSTANCE_FUNCTION(vkCreateDisplayModeKHR);
-    VK_INSTANCE_FUNCTION(vkCreateDisplayPlaneSurfaceKHR);
     VK_INSTANCE_FUNCTION(vkDestroySurfaceKHR);
-    VK_INSTANCE_FUNCTION(vkGetDisplayModePropertiesKHR);
-    VK_INSTANCE_FUNCTION(vkGetDisplayPlaneCapabilitiesKHR);
-    VK_INSTANCE_FUNCTION(vkGetDisplayPlaneSupportedDisplaysKHR);
-    VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceDisplayPropertiesKHR);
-    VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceDisplayPlanePropertiesKHR);
     VK_INSTANCE_FUNCTION(vkGetPhysicalDevicePresentationSupportKHR);
     VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceSurfaceCapabilitiesKHR);
     VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceSurfaceFormatsKHR);

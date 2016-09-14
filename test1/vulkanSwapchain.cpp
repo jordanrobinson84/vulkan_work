@@ -33,7 +33,7 @@ VulkanSwapchain::VulkanSwapchain(VulkanDriverInstance * __instance, VulkanDevice
     VkSwapchainCreateInfoKHR swapchainCreateInfo;
     swapchainCreateInfo.sType                   = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
     swapchainCreateInfo.pNext                   = nullptr;
-    swapchainCreateInfo.flags                   = surfaceFormats[0].colorSpace;
+    swapchainCreateInfo.flags                   = 0;
     swapchainCreateInfo.surface                 = surface;
     swapchainCreateInfo.minImageCount           = imageCount;
     swapchainCreateInfo.imageFormat             = surfaceFormats[0].format;
@@ -50,14 +50,14 @@ VulkanSwapchain::VulkanSwapchain(VulkanDriverInstance * __instance, VulkanDevice
     swapchainCreateInfo.clipped                 = VK_TRUE;
     swapchainCreateInfo.oldSwapchain            = nullptr;
 
-    assert(vkCreateSwapchainKHR(deviceContext->device, &swapchainCreateInfo, nullptr, &swapchain) == VK_SUCCESS);
+    assert(deviceContext->vkCreateSwapchainKHR(deviceContext->device, &swapchainCreateInfo, nullptr, &swapchain) == VK_SUCCESS);
 
     // Get Swapchain images (access-controlled)
     uint32_t swapchainImageCount = 0;
-    assert(vkGetSwapchainImagesKHR(deviceContext->device, swapchain, &swapchainImageCount, nullptr) == VK_SUCCESS);
+    assert(deviceContext->vkGetSwapchainImagesKHR(deviceContext->device, swapchain, &swapchainImageCount, nullptr) == VK_SUCCESS);
     assert(swapchainImageCount != 0);
     swapchainImages = std::vector<VkImage>(swapchainImageCount);
-    assert(vkGetSwapchainImagesKHR(deviceContext->device, swapchain, &swapchainImageCount, &swapchainImages[0]) == VK_SUCCESS);
+    assert(deviceContext->vkGetSwapchainImagesKHR(deviceContext->device, swapchain, &swapchainImageCount, &swapchainImages[0]) == VK_SUCCESS);
 
 }
 
@@ -65,7 +65,7 @@ VulkanSwapchain::~VulkanSwapchain(){
     deviceContext->vkDestroySemaphore(deviceContext->device, presentationSemaphore, nullptr);
     deviceContext->vkDestroySemaphore(deviceContext->device, renderingDoneSemaphore, nullptr);
 
-    vkDestroySwapchainKHR(deviceContext->device, swapchain, nullptr);
+    deviceContext->vkDestroySwapchainKHR(deviceContext->device, swapchain, nullptr);
 
     // Destroy images
     swapchainImages.clear();
@@ -91,7 +91,7 @@ void VulkanSwapchain::present(VkQueue presentationQueue){
     // Get the index of the image for rendering
     uint32_t swapchainImageIndex    = 0xFFFFFFFF;
     uint32_t acquireTimeout         = 0x1000000; // ~16.7 ms
-    assert(vkAcquireNextImageKHR(deviceContext->device, swapchain, acquireTimeout, presentationSemaphore, VK_NULL_HANDLE, &swapchainImageIndex) == VK_SUCCESS);
+    assert(deviceContext->vkAcquireNextImageKHR(deviceContext->device, swapchain, acquireTimeout, presentationSemaphore, VK_NULL_HANDLE, &swapchainImageIndex) == VK_SUCCESS);
     assert(swapchainImageIndex != 0xFFFFFFFF);
 
     // Present
@@ -107,7 +107,7 @@ void VulkanSwapchain::present(VkQueue presentationQueue){
         &presentResult
     };
 
-    assert(vkQueuePresentKHR(presentationQueue, &presentInfo) == VK_SUCCESS);
+    assert(deviceContext->vkQueuePresentKHR(presentationQueue, &presentInfo) == VK_SUCCESS);
 }
 
 void VulkanSwapchain::querySwapchain(VkPhysicalDevice physicalDevice){
