@@ -40,23 +40,25 @@
 typedef VkQueueFamilyProperties * VkQueueFamilyPropertiesPtr;
 
 class VulkanCommandPool;
+class VulkanDriverInstance;
 
 struct VulkanDevice{
     VulkanDevice(VulkanDriverInstance * __instance, uint32_t deviceNumber, bool debugPrint = true);
-    int32_t getUsableMemoryType(uint32_t memoryTypeBits, const VkMemoryPropertyFlags requiredProperties);
-    int32_t getUsableDeviceQueueFamily(const VkQueueFlags requiredProperties);
-    VulkanCommandPool * getCommandPool(VkCommandPoolCreateFlags flags, uint32_t queueFamilyIndex);
+    ~VulkanDevice();
+    int32_t                             getUsableMemoryType(uint32_t memoryTypeBits, const VkMemoryPropertyFlags requiredProperties);
+    int32_t                             getUsableDeviceQueueFamily(const VkQueueFlags requiredProperties);
+    VulkanCommandPool *                 getCommandPool(VkCommandPoolCreateFlags flags, uint32_t queueFamilyIndex);
 
-    VkDevice device;
-    bool created;
-    VkPhysicalDeviceFeatures deviceFeatures;
-    VkFormatProperties deviceFormatProperties;
-    VkImageFormatProperties deviceImageFormatProperties;
-    VkPhysicalDeviceMemoryProperties deviceMemoryProperties;
-    VkPhysicalDeviceProperties deviceProperties;
-    uint32_t deviceQueueFamilyPropertyCount;
-    VkQueueFamilyPropertiesPtr deviceQueueProperties;
-    VkSparseImageFormatProperties deviceSparseImageFormatProperties;
+    VkDevice                            device;
+    VulkanDriverInstance *              instance;
+    VkPhysicalDeviceFeatures            deviceFeatures;
+    VkFormatProperties                  deviceFormatProperties;
+    VkImageFormatProperties             deviceImageFormatProperties;
+    VkPhysicalDeviceMemoryProperties    deviceMemoryProperties;
+    VkPhysicalDeviceProperties          deviceProperties;
+    uint32_t                            deviceQueueFamilyPropertyCount;
+    VkQueueFamilyPropertiesPtr          deviceQueueProperties;
+    VkSparseImageFormatProperties       deviceSparseImageFormatProperties;
 
     // Device-level Function Pointers
     VK_DEVICE_FUNCTION(vkAllocateCommandBuffers);
@@ -206,17 +208,12 @@ public:
     VulkanDriverInstance(std::string applicationName);
     ~VulkanDriverInstance();
     void enumeratePhysicalDevices(bool debugPrint = true);
-    // void setupDevice(uint32_t deviceNumber, bool debugPrint = true);
-    // VulkanDevice * getDevice(uint32_t deviceNumber, bool debugPrint = true);
 
     void *loader;
     // Instance variables
-    VkInstance instance;
-    uint32_t numPhysicalDevices;
-    std::vector<VkPhysicalDevice> physicalDevices;
-
-    // Device variables
-    // std::vector<VulkanDevice> devices;
+    VkInstance                      instance;
+    uint32_t                        numPhysicalDevices;
+    std::vector<VkPhysicalDevice>   physicalDevices;
 
     // Exported Function Pointers
     VK_EXPORTED_FUNCTION(vkEnumerateInstanceLayerProperties);

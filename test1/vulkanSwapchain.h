@@ -8,6 +8,8 @@ struct VulkanSwapchain{
 
     VulkanSwapchain(VulkanDevice * __deviceContext, VkPhysicalDevice physicalDevice, VkSurfaceKHR swapchainSurface, std::vector<uint32_t> & supportedQueueFamilyIndices);
     ~VulkanSwapchain();
+    VkFramebuffer getCurrentFramebuffer();
+    VkImage       getCurrentImage();
     void present(VkQueue presentationQueue);
     void querySwapchain(VkPhysicalDevice physicalDevice);
     void setImageLayout(VkCommandBuffer cmdBuffer, VkImage image, VkImageAspectFlags aspects, VkImageLayout oldLayout, VkImageLayout newLayout);

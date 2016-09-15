@@ -4,6 +4,7 @@ VulkanSwapchain::VulkanSwapchain(VulkanDevice * __deviceContext, VkPhysicalDevic
     deviceContext       = __deviceContext;
     surface             = swapchainSurface;
     surfaceFormatIndex  = 0; // Default surface format
+    swapchainImageIndex = 0;
 
     assert(deviceContext != nullptr);
 
@@ -89,9 +90,24 @@ VulkanSwapchain::~VulkanSwapchain(){
     swapchainFramebuffers.clear();
 }
 
+VkFramebuffer VulkanSwapchain::getCurrentFramebuffer(){
+    if ( swapchainFramebuffers.empty()){
+        return VK_NULL_HANDLE;
+    }else{
+        return swapchainFramebuffers[swapchainImageIndex];
+    }
+}
+
+VkImage VulkanSwapchain::getCurrentImage(){
+    if ( swapchainImages.empty()){
+        return VK_NULL_HANDLE;
+    }else{
+        return swapchainImages[swapchainImageIndex];
+    }
+}
+
 void VulkanSwapchain::present(VkQueue presentationQueue){
     // Get the index of the image for rendering
-    uint32_t swapchainImageIndex    = 0xFFFFFFFF;
     uint32_t acquireTimeout         = 0x1000000; // ~16.7 ms
     assert(deviceContext->vkAcquireNextImageKHR(deviceContext->device, swapchain, acquireTimeout, presentationSemaphore, VK_NULL_HANDLE, &swapchainImageIndex) == VK_SUCCESS);
     assert(swapchainImageIndex != 0xFFFFFFFF);

@@ -38,7 +38,7 @@ int main(){
     vertexBufferData[7] = 0.5; // y[2]
     vertexBufferData[8] = 0.0; // z[2]
 
-    VulkanBuffer vertexBuffer(deviceContext, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, vertexBufferData, sizeof(float) * 9, false);
+    // VulkanBuffer vertexBuffer(deviceContext, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, vertexBufferData, sizeof(float) * 9, false);
 
     // Get XCB connection
     xcb_connection_t * connection = xcb_connect (nullptr, nullptr);
@@ -76,7 +76,7 @@ int main(){
     assert(instance.vkCreateSurfaceKHR(instance.instance, &surfaceCreateInfo, nullptr, &surface) == VK_SUCCESS);
 
     std::vector<uint32_t> queueFamilyIndices = {0};
-    VulkanSwapchain swapchain(&instance, deviceContext, instance.physicalDevices[0], surface, queueFamilyIndices);
+    VulkanSwapchain swapchain(deviceContext, instance.physicalDevices[0], surface, queueFamilyIndices);
 
     // Do rendering
     VulkanCommandPool * renderPool      = deviceContext->getCommandPool(VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT, queueFamilyIndices[0]);
@@ -91,17 +91,32 @@ int main(){
         VK_ATTACHMENT_STORE_OP_STORE,
         VK_ATTACHMENT_LOAD_OP_LOAD,
         VK_ATTACHMENT_STORE_OP_STORE,
-        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        VK_IMAGE_LAYOUT_UNDEFINED,
         VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
     };
+
+    VkAttachmentReference colorAttachment = {0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL};
+    VkSubpassDescription subpassDescription = {
+        0, // Flags
+        VK_PIPELINE_BIND_POINT_GRAPHICS, // pipelineBindPoint
+        0, // inputAttachmentCount
+        nullptr, // pInputAttachments
+        1, // colorAttachmentCount
+        &colorAttachment, // pColorAttachments
+        nullptr, // pResolveAttachments
+        nullptr, // pDepthStencilAttachment
+        0, // preserveAttachmentCount
+        nullptr// pPreserveAttachments
+    };
+
     VkRenderPassCreateInfo renderPassCreateInfo = {
         VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
         nullptr,
         0,
         1,
         &defaultAttachment,
-        0,
-        nullptr, // Need to fill in subpass
+        1,
+        &subpassDescription, // Need to fill in subpass
         0,
         nullptr
     };
@@ -116,6 +131,43 @@ int main(){
     };
     assert( deviceContext->vkBeginCommandBuffer(cmdBuffer[0], &cmdBufferBeginInfo) == VK_SUCCESS);
     swapchain.setupSwapchain(cmdBuffer[0], renderPass);
+    // swapchain.setImageLayout(cmdBuffer[0], renderPass);
+
+    // Begin the render pass
+    VkClearValue colorClear = {0.0f, 1.0f, 0.0f, 1.0f};
+    VkRenderPassBeginInfo renderPassBegin = {
+        VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+        nullptr,
+        renderPass,
+        swapchain.getCurrentFramebuffer(),
+        {{0,0}, swapchain.extent},
+        1,
+        &colorClear
+    };
+    deviceContext->vkCmdBeginRenderPass(cmdBuffer[0], &renderPassBegin, VK_SUBPASS_CONTENTS_INLINE);
+
+    // Dispatch
+    VkQueue presentQueue;
+    deviceContext->vkGetDeviceQueue(deviceContext->device, queueFamilyIndices[0], 0, &presentQueue);
+    VkSubmitInfo presentSubmitInfo;
+    presentSubmitInfo.sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    presentSubmitInfo.pNext                = nullptr;
+    presentSubmitInfo.waitSemaphoreCount   = 0; // No wait semaphores
+    presentSubmitInfo.pWaitSemaphores      = nullptr; // No wait semaphores
+    presentSubmitInfo.pWaitDstStageMask    = nullptr; // No wait semaphores
+    presentSubmitInfo.commandBufferCount   = 1;
+    presentSubmitInfo.pCommandBuffers      = &cmdBuffer[0];
+    presentSubmitInfo.signalSemaphoreCount = 1; // No signal semaphores
+    presentSubmitInfo.pSignalSemaphores    = &swapchain.renderingDoneSemaphore; // No signal semaphores
+
+    swapchain.setImageLayout(cmdBuffer[0], swapchain.getCurrentImage(), VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+    // End render pass
+    deviceContext->vkCmdEndRenderPass(cmdBuffer[0]);
+    deviceContext->vkEndCommandBuffer(cmdBuffer[0]);
+    assert(deviceContext->vkQueueSubmit(presentQueue, 1, &presentSubmitInfo, 0) == VK_SUCCESS);
+
+    // Present
+    swapchain.present(presentQueue);
 
     // Wait
     std::cin.get();
