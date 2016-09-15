@@ -6,14 +6,13 @@ class VulkanDriverInstance;
 // TODO
 struct VulkanSwapchain{
 
-    VulkanSwapchain(VulkanDriverInstance * __instance, VulkanDevice * __deviceContext, VkPhysicalDevice physicalDevice, VkSurfaceKHR swapchainSurface, std::vector<uint32_t> & supportedQueueFamilyIndices);
+    VulkanSwapchain(VulkanDevice * __deviceContext, VkPhysicalDevice physicalDevice, VkSurfaceKHR swapchainSurface, std::vector<uint32_t> & supportedQueueFamilyIndices);
     ~VulkanSwapchain();
     void present(VkQueue presentationQueue);
     void querySwapchain(VkPhysicalDevice physicalDevice);
     void setImageLayout(VkCommandBuffer cmdBuffer, VkImage image, VkImageAspectFlags aspects, VkImageLayout oldLayout, VkImageLayout newLayout);
     void setupSwapchain(VkCommandBuffer cmdBuffer, VkRenderPass renderPass);
 
-    VulkanDriverInstance *          instance;
     VulkanDevice *                  deviceContext;
     VkSurfaceKHR                    surface;
     VkSwapchainKHR                  swapchain;
@@ -26,5 +25,6 @@ struct VulkanSwapchain{
     VkSurfaceCapabilitiesKHR        surfaceCaps;
     VkSemaphore                     presentationSemaphore;
     VkSemaphore                     renderingDoneSemaphore;
+    uint32_t                        surfaceFormatIndex;
     uint32_t                        swapchainImageIndex;
 };

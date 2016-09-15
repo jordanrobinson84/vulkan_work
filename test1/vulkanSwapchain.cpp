@@ -1,9 +1,11 @@
 #include "vulkanSwapchain.h"
 
-VulkanSwapchain::VulkanSwapchain(VulkanDriverInstance * __instance, VulkanDevice * __deviceContext, VkPhysicalDevice physicalDevice, VkSurfaceKHR swapchainSurface, std::vector<uint32_t> & supportedQueueFamilyIndices){
-    instance        = __instance;
-    deviceContext   = __deviceContext;
-    surface         = swapchainSurface;
+VulkanSwapchain::VulkanSwapchain(VulkanDevice * __deviceContext, VkPhysicalDevice physicalDevice, VkSurfaceKHR swapchainSurface, std::vector<uint32_t> & supportedQueueFamilyIndices){
+    deviceContext       = __deviceContext;
+    surface             = swapchainSurface;
+    surfaceFormatIndex  = 0; // Default surface format
+
+    assert(deviceContext != nullptr);
 
     querySwapchain(physicalDevice);
 
@@ -36,8 +38,8 @@ VulkanSwapchain::VulkanSwapchain(VulkanDriverInstance * __instance, VulkanDevice
     swapchainCreateInfo.flags                   = 0;
     swapchainCreateInfo.surface                 = surface;
     swapchainCreateInfo.minImageCount           = imageCount;
-    swapchainCreateInfo.imageFormat             = surfaceFormats[0].format;
-    swapchainCreateInfo.imageColorSpace         = surfaceFormats[0].colorSpace;
+    swapchainCreateInfo.imageFormat             = surfaceFormats[surfaceFormatIndex].format;
+    swapchainCreateInfo.imageColorSpace         = surfaceFormats[surfaceFormatIndex].colorSpace;
     swapchainCreateInfo.imageExtent             = extent;
     swapchainCreateInfo.imageArrayLayers        = 1;
     swapchainCreateInfo.imageUsage              = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
@@ -114,10 +116,10 @@ void VulkanSwapchain::querySwapchain(VkPhysicalDevice physicalDevice){
 
     // Query Swapchain image format support
     uint32_t surfaceFormatCount = 0;
-    assert(instance->vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &surfaceFormatCount, nullptr) == VK_SUCCESS);
+    assert(deviceContext->instance->vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &surfaceFormatCount, nullptr) == VK_SUCCESS);
     assert(surfaceFormatCount != 0);
     surfaceFormats = std::vector<VkSurfaceFormatKHR>(surfaceFormatCount);
-    assert(instance->vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &surfaceFormatCount, &surfaceFormats[0]) == VK_SUCCESS);
+    assert(deviceContext->instance->vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &surfaceFormatCount, &surfaceFormats[surfaceFormatIndex]) == VK_SUCCESS);
     std::cout << "Surface Formats: " << std::endl;
     for(auto surfaceFormat: surfaceFormats){
         std::cout << "   " << surfaceFormat.format << std::endl;
@@ -125,10 +127,10 @@ void VulkanSwapchain::querySwapchain(VkPhysicalDevice physicalDevice){
 
     // Query Swapchain present mode support
     uint32_t presentModeCount = 0;
-    assert(instance->vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, &presentModeCount, nullptr) == VK_SUCCESS);
+    assert(deviceContext->instance->vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, &presentModeCount, nullptr) == VK_SUCCESS);
     assert(presentModeCount != 0);
     presentModes = std::vector<VkPresentModeKHR>(presentModeCount);
-    assert(instance->vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, &presentModeCount, &presentModes[0]) == VK_SUCCESS);
+    assert(deviceContext->instance->vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, &presentModeCount, &presentModes[0]) == VK_SUCCESS);
     std::cout << "Present Modes: " << std::endl;
     for(auto presentMode: presentModes){
         std::string formatString = "";
@@ -153,7 +155,7 @@ void VulkanSwapchain::querySwapchain(VkPhysicalDevice physicalDevice){
     }
 
     // Query Swapchain surface capabilities
-    assert(instance->vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, &surfaceCaps) == VK_SUCCESS);
+    assert(deviceContext->instance->vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, &surfaceCaps) == VK_SUCCESS);
     if (surfaceCaps.currentExtent.width < 1 || surfaceCaps.currentExtent.height < 1){
         extent.width    = 512;
         extent.height   = 512;
@@ -163,7 +165,7 @@ void VulkanSwapchain::querySwapchain(VkPhysicalDevice physicalDevice){
 
     // Query surface support
     VkBool32 surfaceSupported;
-    assert(instance->vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, 0, surface, &surfaceSupported) == VK_SUCCESS);
+    assert(deviceContext->instance->vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, 0, surface, &surfaceSupported) == VK_SUCCESS);
     assert(surfaceSupported == VK_TRUE);
 }
 
@@ -241,7 +243,7 @@ void VulkanSwapchain::setupSwapchain(VkCommandBuffer cmdBuffer, VkRenderPass ren
     swapchainImageViews.resize(imageCount);
     swapchainFramebuffers.resize(imageCount);
 
-    for(uint32_t index = 0; index < swapchainImages.size(); index++){
+    for(uint32_t index = 0; index < imageCount; index++){
         // Image View creation
         VkImageViewCreateInfo imageCreateInfo = {
             VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
@@ -249,7 +251,7 @@ void VulkanSwapchain::setupSwapchain(VkCommandBuffer cmdBuffer, VkRenderPass ren
             0,
             swapchainImages[index],
             VK_IMAGE_VIEW_TYPE_2D,
-            surfaceFormats[0].format,
+            surfaceFormats[surfaceFormatIndex].format,
             {VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A},
             {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1}
         };

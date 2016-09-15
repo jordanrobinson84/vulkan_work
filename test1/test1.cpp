@@ -20,8 +20,7 @@ int main(){
     }
 
     // Set up instance variables and functions
-    VulkanDevice * deviceContext = nullptr;
-    deviceContext = instance.getDevice(0);
+    VulkanDevice * deviceContext = new VulkanDevice(&instance, 0); // Create device for device #0
     if (deviceContext == nullptr){
         std::cout << "Could not create a Vulkan Device!" << std:: endl;
         return false;

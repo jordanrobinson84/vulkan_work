@@ -42,7 +42,7 @@ typedef VkQueueFamilyProperties * VkQueueFamilyPropertiesPtr;
 class VulkanCommandPool;
 
 struct VulkanDevice{
-    VulkanDevice() : created(false){};
+    VulkanDevice(VulkanDriverInstance * __instance, uint32_t deviceNumber, bool debugPrint = true);
     int32_t getUsableMemoryType(uint32_t memoryTypeBits, const VkMemoryPropertyFlags requiredProperties);
     int32_t getUsableDeviceQueueFamily(const VkQueueFlags requiredProperties);
     VulkanCommandPool * getCommandPool(VkCommandPoolCreateFlags flags, uint32_t queueFamilyIndex);
@@ -206,8 +206,8 @@ public:
     VulkanDriverInstance(std::string applicationName);
     ~VulkanDriverInstance();
     void enumeratePhysicalDevices(bool debugPrint = true);
-    void setupDevice(uint32_t deviceNumber, bool debugPrint = true);
-    VulkanDevice * getDevice(uint32_t deviceNumber, bool debugPrint = true);
+    // void setupDevice(uint32_t deviceNumber, bool debugPrint = true);
+    // VulkanDevice * getDevice(uint32_t deviceNumber, bool debugPrint = true);
 
     void *loader;
     // Instance variables
@@ -216,7 +216,7 @@ public:
     std::vector<VkPhysicalDevice> physicalDevices;
 
     // Device variables
-    std::vector<VulkanDevice> devices;
+    // std::vector<VulkanDevice> devices;
 
     // Exported Function Pointers
     VK_EXPORTED_FUNCTION(vkEnumerateInstanceLayerProperties);
