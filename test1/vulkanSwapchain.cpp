@@ -260,6 +260,9 @@ void VulkanSwapchain::setupSwapchain(VkCommandBuffer cmdBuffer, VkRenderPass ren
     swapchainFramebuffers.resize(imageCount);
 
     for(uint32_t index = 0; index < imageCount; index++){
+        // Bind and Allocate Image
+        deviceContext->allocateAndBindMemory(swapchainImages[index], false);
+
         // Image View creation
         VkImageViewCreateInfo imageCreateInfo = {
             VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,

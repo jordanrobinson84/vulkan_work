@@ -48,6 +48,8 @@ struct VulkanDevice{
     int32_t                             getUsableMemoryType(uint32_t memoryTypeBits, const VkMemoryPropertyFlags requiredProperties);
     int32_t                             getUsableDeviceQueueFamily(const VkQueueFlags requiredProperties);
     VulkanCommandPool *                 getCommandPool(VkCommandPoolCreateFlags flags, uint32_t queueFamilyIndex);
+    void                                allocateAndBindMemory(VkBuffer buffer, bool hostVisible);
+    void                                allocateAndBindMemory(VkImage image, bool hostVisible);
 
     VkDevice                            device;
     VulkanDriverInstance *              instance;

@@ -381,6 +381,54 @@ int32_t VulkanDevice::getUsableDeviceQueueFamily(const VkQueueFlags requiredProp
     return queueFamily;
 }
 
+void VulkanDevice::allocateAndBindMemory(VkBuffer buffer, bool hostVisible){
+    VkDeviceMemory          bufferMemory;
+    VkMemoryAllocateInfo    allocateInfo;
+    VkMemoryRequirements    memoryRequirements;
+
+    // Get Memory Requirements
+    deviceContext->vkGetBufferMemoryRequirements(deviceContext->device, buffer, &memoryRequirements);
+
+    int32_t memoryType = deviceContext->getUsableMemoryType(memoryRequirements.memoryTypeBits, 
+                                                            hostVisible ? VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT : VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    assert (memoryType != -1);
+    std::cout << "Memory type for buffer: " << std::dec << memoryType << std::endl;
+
+    // Allocate Memory
+    allocateInfo.sType              = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocateInfo.pNext              = nullptr;
+    allocateInfo.allocationSize     = memoryRequirements.size;
+    allocateInfo.memoryTypeIndex    = memoryType;
+    assert( deviceContext->vkAllocateMemory(deviceContext->device, &allocateInfo, nullptr, &bufferMemory) == VK_SUCCESS);
+
+    // Bind Memory for buffer
+    assert( deviceContext->vkBindBufferMemory(deviceContext->device, buffer, bufferMemory, 0) == VK_SUCCESS);
+}
+
+void VulkanDevice::allocateAndBindMemory(VkImage image, bool hostVisible){
+    VkDeviceMemory          imageMemory;
+    VkMemoryAllocateInfo    allocateInfo;
+    VkMemoryRequirements    memoryRequirements;
+
+    // Get Memory Requirements
+    deviceContext->vkGetImageMemoryRequirements(deviceContext->device, image, &memoryRequirements);
+
+    int32_t memoryType = deviceContext->getUsableMemoryType(memoryRequirements.memoryTypeBits, 
+                                                            hostVisible ? VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT : VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    assert (memoryType != -1);
+    std::cout << "Memory type for image: " << std::dec << memoryType << std::endl;
+
+    // Allocate Memory
+    allocateInfo.sType              = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocateInfo.pNext              = nullptr;
+    allocateInfo.allocationSize     = memoryRequirements.size;
+    allocateInfo.memoryTypeIndex    = memoryType;
+    assert( deviceContext->vkAllocateMemory(deviceContext->device, &allocateInfo, nullptr, &imageMemory) == VK_SUCCESS);
+
+    // Bind Memory for image
+    assert( deviceContext->vkBindImageMemory(deviceContext->device, image, imageMemory, 0) == VK_SUCCESS);
+}
+
 VulkanDriverInstance::VulkanDriverInstance(std::string applicationName){
     numPhysicalDevices                              = 0;
 
