@@ -4,10 +4,11 @@
 #include "vulkanDriverInstance.h"
 
 class VulkanRenderPass{
+public:
     VulkanRenderPass(VulkanDevice                          * __deviceContext,
                      std::vector<VkAttachmentDescription>  & attachments,
                      std::vector<VkSubpassDescription>     & subpasses,
-                     std::vector<VkSubpassDependency>      & subpassDependecies = {});
+                     std::vector<VkSubpassDependency>      & subpassDependencies);
     ~VulkanRenderPass();
 
     VkRenderPass   renderPass;

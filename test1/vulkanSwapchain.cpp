@@ -65,9 +65,6 @@ VulkanSwapchain::VulkanSwapchain(VulkanDevice * __deviceContext, VkPhysicalDevic
 }
 
 VulkanSwapchain::~VulkanSwapchain(){
-    deviceContext->vkDestroySemaphore(deviceContext->device, presentationSemaphore, nullptr);
-    deviceContext->vkDestroySemaphore(deviceContext->device, renderingDoneSemaphore, nullptr);
-
     deviceContext->vkDestroySwapchainKHR(deviceContext->device, swapchain, nullptr);
 
     // Destroy images
@@ -88,10 +85,13 @@ VulkanSwapchain::~VulkanSwapchain(){
         }
     }
     swapchainFramebuffers.clear();
+
+    deviceContext->vkDestroySemaphore(deviceContext->device, presentationSemaphore, nullptr);
+    deviceContext->vkDestroySemaphore(deviceContext->device, renderingDoneSemaphore, nullptr);
 }
 
 VkFramebuffer VulkanSwapchain::getCurrentFramebuffer(){
-    if ( swapchainFramebuffers.empty()){
+    if ( swapchainFramebuffers.size() == 0){
         return VK_NULL_HANDLE;
     }else{
         return swapchainFramebuffers[swapchainImageIndex];
@@ -99,7 +99,7 @@ VkFramebuffer VulkanSwapchain::getCurrentFramebuffer(){
 }
 
 VkImage VulkanSwapchain::getCurrentImage(){
-    if ( swapchainImages.empty()){
+    if ( swapchainImages.size() == 0){
         return VK_NULL_HANDLE;
     }else{
         return swapchainImages[swapchainImageIndex];
@@ -256,12 +256,12 @@ void VulkanSwapchain::setupSwapchain(VkCommandBuffer cmdBuffer, VkRenderPass ren
     uint32_t imageCount = swapchainImages.size();
     assert(imageCount != 0);
 
-    swapchainImageViews.resize(imageCount);
-    swapchainFramebuffers.resize(imageCount);
+    swapchainImageViews = std::vector<VkImageView>(imageCount);
+    swapchainFramebuffers = std::vector<VkFramebuffer>(imageCount);
 
     for(uint32_t index = 0; index < imageCount; index++){
-        // Bind and Allocate Image
-        deviceContext->allocateAndBindMemory(swapchainImages[index], false);
+        // deviceContext->allocateAndBindMemory(swapchainImages[index], false);
+        std::cout << "Swapchain Image #" << index << ": " << swapchainImages[index] << std::endl;
 
         // Image View creation
         VkImageViewCreateInfo imageCreateInfo = {
@@ -276,7 +276,7 @@ void VulkanSwapchain::setupSwapchain(VkCommandBuffer cmdBuffer, VkRenderPass ren
         };
 
         // Set layout before creating image view
-        setImageLayout(cmdBuffer, swapchainImages[index], VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+        setImageLayout(cmdBuffer, swapchainImages[index], VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
         assert(deviceContext->vkCreateImageView(deviceContext->device, &imageCreateInfo, nullptr, &swapchainImageViews[index]) == VK_SUCCESS);
 
         // Framebuffer creation

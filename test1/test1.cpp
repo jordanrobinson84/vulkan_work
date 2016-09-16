@@ -2,6 +2,7 @@
 #include <cassert>
 #include "vulkanDriverInstance.h"
 #include "vulkanBuffer.h"
+#include "vulkanRenderPass.h"
 #include "vulkanSwapchain.h"
 
 int main(){
@@ -87,11 +88,11 @@ int main(){
         VK_ATTACHMENT_DESCRIPTION_MAY_ALIAS_BIT,
         swapchain.surfaceFormats[0].format,
         VK_SAMPLE_COUNT_1_BIT,
-        VK_ATTACHMENT_LOAD_OP_LOAD,
-        VK_ATTACHMENT_STORE_OP_STORE,
-        VK_ATTACHMENT_LOAD_OP_LOAD,
-        VK_ATTACHMENT_STORE_OP_STORE,
-        VK_IMAGE_LAYOUT_UNDEFINED,
+        VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+        VK_ATTACHMENT_STORE_OP_DONT_CARE,
+        VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+        VK_ATTACHMENT_STORE_OP_DONT_CARE,
+        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
         VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
     };
 
@@ -109,19 +110,23 @@ int main(){
         nullptr// pPreserveAttachments
     };
 
-    VkRenderPassCreateInfo renderPassCreateInfo = {
-        VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
-        nullptr,
-        0,
-        1,
-        &defaultAttachment,
-        1,
-        &subpassDescription, // Need to fill in subpass
-        0,
-        nullptr
-    };
-    VkRenderPass renderPass;
-    assert(deviceContext->vkCreateRenderPass(deviceContext->device, &renderPassCreateInfo, nullptr, &renderPass) == VK_SUCCESS);
+    // VkRenderPassCreateInfo renderPassCreateInfo = {
+    //     VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
+    //     nullptr,
+    //     0,
+    //     1,
+    //     &defaultAttachment,
+    //     1,
+    //     &subpassDescription, // Need to fill in subpass
+    //     0,
+    //     nullptr
+    // };
+    // VkRenderPass renderPass;
+    // assert(deviceContext->vkCreateRenderPass(deviceContext->device, &renderPassCreateInfo, nullptr, &renderPass) == VK_SUCCESS);
+    std::vector<VkAttachmentDescription> attachments = {defaultAttachment};
+    std::vector<VkSubpassDescription> subpasses ={subpassDescription};
+    std::vector<VkSubpassDependency> dependencies = {};
+    VulkanRenderPass rp(deviceContext, attachments, subpasses, dependencies);
 
     VkCommandBufferBeginInfo cmdBufferBeginInfo = {
         VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
@@ -130,15 +135,15 @@ int main(){
         nullptr
     };
     assert( deviceContext->vkBeginCommandBuffer(cmdBuffer[0], &cmdBufferBeginInfo) == VK_SUCCESS);
-    swapchain.setupSwapchain(cmdBuffer[0], renderPass);
-    // swapchain.setImageLayout(cmdBuffer[0], renderPass);
+    swapchain.setupSwapchain(cmdBuffer[0], rp.renderPass);
+    // swapchain.setImageLayout(cmdBuffer[0], swapchain.getCurrentImage(), VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
     // Begin the render pass
     VkClearValue colorClear = {0.0f, 1.0f, 0.0f, 1.0f};
     VkRenderPassBeginInfo renderPassBegin = {
         VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
         nullptr,
-        renderPass,
+        rp.renderPass,
         swapchain.getCurrentFramebuffer(),
         {{0,0}, swapchain.extent},
         1,
@@ -160,20 +165,21 @@ int main(){
     presentSubmitInfo.signalSemaphoreCount = 1; // No signal semaphores
     presentSubmitInfo.pSignalSemaphores    = &swapchain.renderingDoneSemaphore; // No signal semaphores
 
-    swapchain.setImageLayout(cmdBuffer[0], swapchain.getCurrentImage(), VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
     // End render pass
     deviceContext->vkCmdEndRenderPass(cmdBuffer[0]);
+    swapchain.setImageLayout(cmdBuffer[0], swapchain.getCurrentImage(), VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
     deviceContext->vkEndCommandBuffer(cmdBuffer[0]);
     assert(deviceContext->vkQueueSubmit(presentQueue, 1, &presentSubmitInfo, 0) == VK_SUCCESS);
 
     // Present
     swapchain.present(presentQueue);
+    renderPool->resetCommandBuffer(cmdBuffer[0], VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
 
     // Wait
     std::cin.get();
-    // vkDestroySwapchainKHR(deviceContext->device, swapchain, nullptr);
+    renderPool->freeCommandBuffers(1, cmdBuffer);
     delete renderPool;
-    deviceContext->vkDestroyRenderPass(deviceContext->device, renderPass, nullptr);
+    // deviceContext->vkDestroyRenderPass(deviceContext->device, renderPass, nullptr);
     xcb_disconnect(connection);
 
     return 0;

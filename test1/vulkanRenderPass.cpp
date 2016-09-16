@@ -3,33 +3,37 @@
 VulkanRenderPass::VulkanRenderPass(VulkanDevice                          * __deviceContext,
                                    std::vector<VkAttachmentDescription>  & attachments,
                                    std::vector<VkSubpassDescription>     & subpasses,
-                                   std::vector<VkSubpassDependency>      & subpassDependecies = {}){
+                                   std::vector<VkSubpassDependency>      & subpassDependencies){
     deviceContext = __deviceContext;
     assert(deviceContext != nullptr);
     assert(attachments.size() > 0);
     assert(subpasses.size() > 0);
 
+    uint32_t attachmentCount        = attachments.size();
+    uint32_t subpassCount           = subpasses.size();
+    uint32_t subpassDependencyCount = subpassDependencies.size();
+
     VkRenderPassCreateInfo renderPassCreateInfo = {
         VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
         nullptr,
         0,
-        attachments.size(),
+        attachmentCount,
         &attachments[0],
-        subpasses.size(),
+        subpassCount,
         &subpasses[0],
         0,
         nullptr
     };
 
     // Add subpasses if they exist
-    if (subpassDependecies.size() > 0){
-        renderPassCreateInfo.dependencyCount = subpassDependecies.size();
-        renderPassCreateInfo.pDependencies   = &subpassDependecies[0];
+    if (subpassDependencies.size() > 0){
+        renderPassCreateInfo.dependencyCount = subpassDependencyCount;
+        renderPassCreateInfo.pDependencies   = &subpassDependencies[0];
     }
-    VkRenderPass renderPass;
+
     assert(deviceContext->vkCreateRenderPass(deviceContext->device, &renderPassCreateInfo, nullptr, &renderPass) == VK_SUCCESS);
 }
 
 VulkanRenderPass::~VulkanRenderPass(){
-    deviceContext->VkDestroyRenderPass(deviceContext->device, renderPass, nullptr);
+    deviceContext->vkDestroyRenderPass(deviceContext->device, renderPass, nullptr);
 }
