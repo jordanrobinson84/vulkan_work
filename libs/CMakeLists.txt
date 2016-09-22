@@ -1,0 +1,1 @@
+add_library(vulkanRenderer STATIC vulkanBuffer.cpp vulkanCommandPool.cpp vulkanDriverInstance.cpp vulkanRenderPass.cpp vulkanSwapchain.cpp)
