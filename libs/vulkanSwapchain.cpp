@@ -62,6 +62,29 @@ VulkanSwapchain::VulkanSwapchain(VulkanDevice * __deviceContext, VkPhysicalDevic
     swapchainImages = std::vector<VkImage>(swapchainImageCount);
     assert(deviceContext->vkGetSwapchainImagesKHR(deviceContext->device, swapchain, &swapchainImageCount, &swapchainImages[0]) == VK_SUCCESS);
 
+    swapchainImageViews = std::vector<VkImageView>(imageCount);
+    swapchainFramebuffers = std::vector<VkFramebuffer>(imageCount);
+
+    for(uint32_t index = 0; index < imageCount; index++){
+        std::cout << "Swapchain Image #" << index << ": " << swapchainImages[index] << std::endl;
+
+        // Image View creation
+        VkImageViewCreateInfo imageCreateInfo = {
+            VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+            nullptr,
+            0,
+            swapchainImages[index],
+            VK_IMAGE_VIEW_TYPE_2D,
+            surfaceFormats[surfaceFormatIndex].format,
+            {VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A},
+            {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1}
+        };
+
+        assert(deviceContext->vkCreateImageView(deviceContext->device, &imageCreateInfo, nullptr, &swapchainImageViews[index]) == VK_SUCCESS);
+    }
+
+    assert(deviceContext->vkAcquireNextImageKHR(deviceContext->device, swapchain, UINT64_MAX, presentationSemaphore, VK_NULL_HANDLE, &swapchainImageIndex) == VK_SUCCESS);
+    assert(swapchainImageIndex != 0xFFFFFFFF);
 }
 
 VulkanSwapchain::~VulkanSwapchain(){
@@ -109,8 +132,8 @@ VkImage VulkanSwapchain::getCurrentImage(){
 void VulkanSwapchain::present(VkQueue presentationQueue){
     // Get the index of the image for rendering
     uint32_t acquireTimeout         = 0x1000000; // ~16.7 ms
-    assert(deviceContext->vkAcquireNextImageKHR(deviceContext->device, swapchain, acquireTimeout, presentationSemaphore, VK_NULL_HANDLE, &swapchainImageIndex) == VK_SUCCESS);
-    assert(swapchainImageIndex != 0xFFFFFFFF);
+
+    std::cout << "Present - Swapchain Image Index: " << swapchainImageIndex << std::endl;
 
     // Present
     VkResult presentResult;
@@ -126,6 +149,9 @@ void VulkanSwapchain::present(VkQueue presentationQueue){
     };
 
     assert(deviceContext->vkQueuePresentKHR(presentationQueue, &presentInfo) == VK_SUCCESS);
+
+    assert(deviceContext->vkAcquireNextImageKHR(deviceContext->device, swapchain, acquireTimeout, presentationSemaphore, VK_NULL_HANDLE, &swapchainImageIndex) == VK_SUCCESS);
+    assert(swapchainImageIndex != 0xFFFFFFFF);
 }
 
 void VulkanSwapchain::querySwapchain(VkPhysicalDevice physicalDevice){
@@ -252,11 +278,11 @@ void VulkanSwapchain::setImageLayout(VkCommandBuffer commandBuffer, VkImage imag
     deviceContext->vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &imageBarrier);
 }
 
-void VulkanSwapchain::setupSwapchain(VkCommandBuffer cmdBuffer, VkRenderPass renderPass){
+void VulkanSwapchain::setupFramebuffers(VkCommandBuffer cmdBuffer, VkRenderPass renderPass){
     uint32_t imageCount = swapchainImages.size();
     assert(imageCount != 0);
 
-    swapchainImageViews = std::vector<VkImageView>(imageCount);
+    // swapchainImageViews = std::vector<VkImageView>(imageCount);
     swapchainFramebuffers = std::vector<VkFramebuffer>(imageCount);
 
     for(uint32_t index = 0; index < imageCount; index++){
@@ -264,20 +290,20 @@ void VulkanSwapchain::setupSwapchain(VkCommandBuffer cmdBuffer, VkRenderPass ren
         std::cout << "Swapchain Image #" << index << ": " << swapchainImages[index] << std::endl;
 
         // Image View creation
-        VkImageViewCreateInfo imageCreateInfo = {
-            VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-            nullptr,
-            0,
-            swapchainImages[index],
-            VK_IMAGE_VIEW_TYPE_2D,
-            surfaceFormats[surfaceFormatIndex].format,
-            {VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A},
-            {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1}
-        };
+        // VkImageViewCreateInfo imageCreateInfo = {
+        //     VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+        //     nullptr,
+        //     0,
+        //     swapchainImages[index],
+        //     VK_IMAGE_VIEW_TYPE_2D,
+        //     surfaceFormats[surfaceFormatIndex].format,
+        //     {VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A},
+        //     {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1}
+        // };
 
         // Set layout before creating image view
         setImageLayout(cmdBuffer, swapchainImages[index], VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-        assert(deviceContext->vkCreateImageView(deviceContext->device, &imageCreateInfo, nullptr, &swapchainImageViews[index]) == VK_SUCCESS);
+        // assert(deviceContext->vkCreateImageView(deviceContext->device, &imageCreateInfo, nullptr, &swapchainImageViews[index]) == VK_SUCCESS);
 
         // Framebuffer creation
         VkFramebufferCreateInfo framebufferCreateInfo = {
@@ -293,5 +319,6 @@ void VulkanSwapchain::setupSwapchain(VkCommandBuffer cmdBuffer, VkRenderPass ren
         };
 
         assert(deviceContext->vkCreateFramebuffer(deviceContext->device, &framebufferCreateInfo, nullptr, &swapchainFramebuffers[index]) == VK_SUCCESS);
+        deviceContext->allocateAndBindMemory(swapchainImages[index], false);
     }
 }

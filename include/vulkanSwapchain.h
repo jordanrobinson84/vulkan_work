@@ -13,7 +13,8 @@ struct VulkanSwapchain{
     void present(VkQueue presentationQueue);
     void querySwapchain(VkPhysicalDevice physicalDevice);
     void setImageLayout(VkCommandBuffer cmdBuffer, VkImage image, VkImageAspectFlags aspects, VkImageLayout oldLayout, VkImageLayout newLayout);
-    void setupSwapchain(VkCommandBuffer cmdBuffer, VkRenderPass renderPass);
+    void setupFramebuffers(VkCommandBuffer cmdBuffer, VkRenderPass renderPass);
+    // void setupSwapchain(VkCommandBuffer cmdBuffer, VkRenderPass renderPass);
 
     VulkanDevice *                  deviceContext;
     VkSurfaceKHR                    surface;
