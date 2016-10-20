@@ -1,7 +1,11 @@
 #include <cassert>
 #include "vulkanDriverInstance.h"
 
-#define VK_EXPORTED_FUNCTION(function) function = (PFN_##function)dlsym(loader, #function ); assert( function != nullptr);
+#if defined (_WIN32) || defined (_WIN64)
+    #define VK_EXPORTED_FUNCTION(function) function = (PFN_##function)GetProcAddress(loader, #function ); assert( function != nullptr);
+#elif defined(__linux__)
+    #define VK_EXPORTED_FUNCTION(function) function = (PFN_##function)dlsym(loader, #function ); assert( function != nullptr);
+#endif
 #define VK_GLOBAL_FUNCTION(function) function = (PFN_##function)( vkGetInstanceProcAddr( nullptr, #function )); assert( function != nullptr);
 #define VK_INSTANCE_FUNCTION(function) function = (PFN_##function)( vkGetInstanceProcAddr( instance, macrostr(function) )); assert( function != nullptr);
 #define VK_DEVICE_FUNCTION(function) function = (PFN_##function)( instance->vkGetDeviceProcAddr( device, #function )); assert( function != nullptr);
@@ -145,7 +149,7 @@ VulkanDevice::VulkanDevice(VulkanDriverInstance * __instance, uint32_t deviceNum
     }
 
     // Device Queue Create Info
-    VkDeviceQueueCreateInfo queueInfo[deviceQueueFamilyPropertyCount];
+    std::vector<VkDeviceQueueCreateInfo> queueInfo(deviceQueueFamilyPropertyCount);
     for (uint32_t queueFamily = 0; queueFamily < deviceQueueFamilyPropertyCount; queueFamily++){
         auto queueFamilyProperties = deviceQueueProperties[queueFamily];
         
@@ -187,7 +191,7 @@ VulkanDevice::VulkanDevice(VulkanDriverInstance * __instance, uint32_t deviceNum
     creationInfo.pNext = nullptr;
     creationInfo.flags = 0; // Reserved
     creationInfo.queueCreateInfoCount = 1;
-    creationInfo.pQueueCreateInfos = queueInfo;
+    creationInfo.pQueueCreateInfos = &queueInfo[0];
     creationInfo.enabledLayerCount = 0;
     creationInfo.ppEnabledLayerNames = nullptr;
     creationInfo.enabledExtensionCount = 1;
@@ -381,29 +385,30 @@ int32_t VulkanDevice::getUsableDeviceQueueFamily(const VkQueueFlags requiredProp
     return queueFamily;
 }
 
-void VulkanDevice::allocateAndBindMemory(VkBuffer buffer, bool hostVisible){
-    VkDeviceMemory          bufferMemory;
-    VkMemoryAllocateInfo    allocateInfo;
-    VkMemoryRequirements    memoryRequirements;
-
-    // Get Memory Requirements
-    vkGetBufferMemoryRequirements(device, buffer, &memoryRequirements);
-
-    int32_t memoryType = getUsableMemoryType(memoryRequirements.memoryTypeBits, 
-                                                            hostVisible ? VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT : VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    assert (memoryType != -1);
-    std::cout << "Memory type for buffer: " << std::dec << memoryType << std::endl;
-
-    // Allocate Memory
-    allocateInfo.sType              = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocateInfo.pNext              = nullptr;
-    allocateInfo.allocationSize     = memoryRequirements.size;
-    allocateInfo.memoryTypeIndex    = memoryType;
-    assert( vkAllocateMemory(device, &allocateInfo, nullptr, &bufferMemory) == VK_SUCCESS);
-
-    // Bind Memory for buffer
-    assert( vkBindBufferMemory(device, buffer, bufferMemory, 0) == VK_SUCCESS);
-}
+// VkImage and VkBuffer collide on VC++
+//void VulkanDevice::allocateAndBindMemory(VkBuffer buffer, bool hostVisible){
+//    VkDeviceMemory          bufferMemory;
+//    VkMemoryAllocateInfo    allocateInfo;
+//    VkMemoryRequirements    memoryRequirements;
+//
+//    // Get Memory Requirements
+//    vkGetBufferMemoryRequirements(device, buffer, &memoryRequirements);
+//
+//    int32_t memoryType = getUsableMemoryType(memoryRequirements.memoryTypeBits, 
+//                                                            hostVisible ? VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT : VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+//    assert (memoryType != -1);
+//    std::cout << "Memory type for buffer: " << std::dec << memoryType << std::endl;
+//
+//    // Allocate Memory
+//    allocateInfo.sType              = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+//    allocateInfo.pNext              = nullptr;
+//    allocateInfo.allocationSize     = memoryRequirements.size;
+//    allocateInfo.memoryTypeIndex    = memoryType;
+//    assert( vkAllocateMemory(device, &allocateInfo, nullptr, &bufferMemory) == VK_SUCCESS);
+//
+//    // Bind Memory for buffer
+//    assert( vkBindBufferMemory(device, buffer, bufferMemory, 0) == VK_SUCCESS);
+//}
 
 void VulkanDevice::allocateAndBindMemory(VkImage image, bool hostVisible){
     VkDeviceMemory          imageMemory;
@@ -433,7 +438,11 @@ void VulkanDevice::allocateAndBindMemory(VkImage image, bool hostVisible){
 VulkanDriverInstance::VulkanDriverInstance(std::string applicationName){
     numPhysicalDevices                              = 0;
 
+#if defined (_WIN32) || defined (_WIN64)
+    loader = LoadLibrary("vulkan-1.dll");
+#elif defined (__linux__)
     loader = dlopen( "libvulkan.so.1", RTLD_NOW | RTLD_LOCAL);
+#endif
 
     assert(loader != nullptr);
 
@@ -476,8 +485,8 @@ VulkanDriverInstance::VulkanDriverInstance(std::string applicationName){
     app.apiVersion = VK_API_VERSION_1_0; // Use version supported by NVIDIA
 
     // Extensions
-    std::vector<const char*> requestedExtensions    = {VK_KHR_XCB_SURFACE_EXTENSION_NAME, VK_KHR_SURFACE_EXTENSION_NAME};
-    std::vector<const char*> requiredExtensions     = {VK_KHR_XCB_SURFACE_EXTENSION_NAME, VK_KHR_SURFACE_EXTENSION_NAME};
+    std::vector<const char*> requestedExtensions    = { VK_KHR_SURFACE_EXTENSION_NAME };
+    std::vector<const char*> requiredExtensions     = { VK_KHR_SURFACE_EXTENSION_NAME };
     std::vector<const char*> enabledExtensions;
     uint32_t requiredExtensionsFound = 0;
     uint32_t extensionCount = 0;
@@ -554,7 +563,11 @@ VulkanDriverInstance::~VulkanDriverInstance(){
     physicalDevices.clear();
 
     // Remove loader
-    assert(dlclose(loader) == 0);
+#if defined (_WIN32) || defined (_WIN64)
+	assert(FreeLibrary(loader) != 0); // Non-zero is success on Windows
+#elif defined (__linux__)
+	assert(dlclose(loader) == 0);
+#endif
     loader = nullptr;
 }
 

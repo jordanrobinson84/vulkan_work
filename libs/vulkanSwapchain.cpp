@@ -51,7 +51,7 @@ VulkanSwapchain::VulkanSwapchain(VulkanDevice * __deviceContext, VkPhysicalDevic
     swapchainCreateInfo.compositeAlpha          = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
     swapchainCreateInfo.presentMode             = presentModes[0];
     swapchainCreateInfo.clipped                 = VK_TRUE;
-    swapchainCreateInfo.oldSwapchain            = nullptr;
+    swapchainCreateInfo.oldSwapchain            = VK_NULL_HANDLE;
 
     assert(deviceContext->vkCreateSwapchainKHR(deviceContext->device, &swapchainCreateInfo, nullptr, &swapchain) == VK_SUCCESS);
 

@@ -1,12 +1,21 @@
 #ifndef __VULKAN_DRIVER_INSTANCE__
 #define __VULKAN_DRIVER_INSTANCE__
 
-#if defined (__linux__)
+#if defined (_WIN32) || defined (_WIN64)
+    #include <windows.h>
+    #define VK_USE_PLATFORM_WIN32_KHR
+    #define VK_KHR_PLATFORM_SURFACE_EXTENSION_NAME  VK_KHR_WIN32_SURFACE_EXTENSION_NAME
+    #define PFN_vkCreateSurfaceKHR PFN_vkCreateWin32SurfaceKHR
+    #define vkCreateSurfaceKHR vkCreateWin32SurfaceKHR
+    #define PFN_vkGetPhysicalDevicePresentationSupportKHR PFN_vkGetPhysicalDeviceWin32PresentationSupportKHR
+    #define vkGetPhysicalDevicePresentationSupportKHR vkGetPhysicalDeviceWin32PresentationSupportKHR
+#elif defined (__linux__)
     #include <X11/keysym.h>
     #include <xcb/xcb.h>
     #include <xcb/xcb_keysyms.h>
     #include <xcb/xcb_icccm.h>
     #include <xcb/randr.h>
+    #include <dlfcn.h> 
     #include <malloc.h>
     #define VK_USE_PLATFORM_XCB_KHR
     #define VK_KHR_PLATFORM_SURFACE_EXTENSION_NAME  VK_KHR_XCB_SURFACE_EXTENSION_NAME
@@ -22,9 +31,9 @@
 #include <vulkan/vk_icd.h>
 #include <vector>
 #include <iostream>
-#include <dlfcn.h> 
 #include <cassert>
 #include <cstring>
+#include <string>
 #include <memory>
 #include "vulkanCommandPool.h"
 
@@ -48,7 +57,7 @@ struct VulkanDevice{
     int32_t                             getUsableMemoryType(uint32_t memoryTypeBits, const VkMemoryPropertyFlags requiredProperties);
     int32_t                             getUsableDeviceQueueFamily(const VkQueueFlags requiredProperties);
     VulkanCommandPool *                 getCommandPool(VkCommandPoolCreateFlags flags, uint32_t queueFamilyIndex);
-    void                                allocateAndBindMemory(VkBuffer buffer, bool hostVisible);
+    //void                                allocateAndBindMemory(VkBuffer buffer, bool hostVisible);
     void                                allocateAndBindMemory(VkImage image, bool hostVisible);
 
     VkDevice                            device;
@@ -211,7 +220,11 @@ public:
     ~VulkanDriverInstance();
     void enumeratePhysicalDevices(bool debugPrint = true);
 
+#if defined (_WIN32) || defined (_WIN64)
+	HMODULE loader;
+#else
     void *loader;
+#endif
     // Instance variables
     VkInstance                      instance;
     uint32_t                        numPhysicalDevices;
