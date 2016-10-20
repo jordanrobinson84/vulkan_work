@@ -81,7 +81,7 @@ int main(){
 
     // Do rendering
     VulkanCommandPool * renderPool      = deviceContext->getCommandPool(VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT, queueFamilyIndices[0]);
-    VkCommandBuffer * cmdBuffer         = renderPool->getCommandBuffers(VK_COMMAND_BUFFER_LEVEL_PRIMARY, 1);
+    VkCommandBuffer * cmdBuffer         = renderPool->getCommandBuffers(VK_COMMAND_BUFFER_LEVEL_PRIMARY, 3);
 
     // Create render pass
     VkAttachmentDescription defaultAttachment = {
@@ -92,7 +92,7 @@ int main(){
         VK_ATTACHMENT_STORE_OP_DONT_CARE,
         VK_ATTACHMENT_LOAD_OP_DONT_CARE,
         VK_ATTACHMENT_STORE_OP_DONT_CARE,
-        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        VK_IMAGE_LAYOUT_UNDEFINED,
         VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
     };
 
@@ -135,45 +135,55 @@ int main(){
         nullptr
     };
     assert( deviceContext->vkBeginCommandBuffer(cmdBuffer[0], &cmdBufferBeginInfo) == VK_SUCCESS);
-    swapchain.setupSwapchain(cmdBuffer[0], rp.renderPass);
-    // swapchain.setImageLayout(cmdBuffer[0], swapchain.getCurrentImage(), VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+    swapchain.setupFramebuffers(cmdBuffer[0], rp.renderPass);
+    // swapchain.setImageLayout(cmdBuffer[0], swapchain.getCurrentImage(), VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL); 
 
-    // Begin the render pass
-    VkClearValue colorClear = {0.0f, 1.0f, 0.0f, 1.0f};
-    VkRenderPassBeginInfo renderPassBegin = {
-        VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
-        nullptr,
-        rp.renderPass,
-        swapchain.getCurrentFramebuffer(),
-        {{0,0}, swapchain.extent},
-        1,
-        &colorClear
-    };
-    deviceContext->vkCmdBeginRenderPass(cmdBuffer[0], &renderPassBegin, VK_SUBPASS_CONTENTS_INLINE);
+    uint32_t frameCount = 0;
 
-    // Dispatch
-    VkQueue presentQueue;
-    deviceContext->vkGetDeviceQueue(deviceContext->device, queueFamilyIndices[0], 0, &presentQueue);
-    VkSubmitInfo presentSubmitInfo;
-    presentSubmitInfo.sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    presentSubmitInfo.pNext                = nullptr;
-    presentSubmitInfo.waitSemaphoreCount   = 0; // No wait semaphores
-    presentSubmitInfo.pWaitSemaphores      = nullptr; // No wait semaphores
-    presentSubmitInfo.pWaitDstStageMask    = nullptr; // No wait semaphores
-    presentSubmitInfo.commandBufferCount   = 1;
-    presentSubmitInfo.pCommandBuffers      = &cmdBuffer[0];
-    presentSubmitInfo.signalSemaphoreCount = 1; // No signal semaphores
-    presentSubmitInfo.pSignalSemaphores    = &swapchain.renderingDoneSemaphore; // No signal semaphores
+    while(frameCount < 2){
 
-    // End render pass
-    deviceContext->vkCmdEndRenderPass(cmdBuffer[0]);
-    swapchain.setImageLayout(cmdBuffer[0], swapchain.getCurrentImage(), VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
-    deviceContext->vkEndCommandBuffer(cmdBuffer[0]);
-    assert(deviceContext->vkQueueSubmit(presentQueue, 1, &presentSubmitInfo, 0) == VK_SUCCESS);
+        // Begin the render pass
+        VkClearValue colorClear = {0.0f, 1.0f, 0.0f, 1.0f};
+        VkRenderPassBeginInfo renderPassBegin = {
+            VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+            nullptr,
+            rp.renderPass,
+            swapchain.getCurrentFramebuffer(),
+            {{0,0}, swapchain.extent},
+            1,
+            &colorClear
+        };
+        deviceContext->vkCmdBeginRenderPass(cmdBuffer[frameCount], &renderPassBegin, VK_SUBPASS_CONTENTS_INLINE);
 
-    // Present
-    swapchain.present(presentQueue);
-    renderPool->resetCommandBuffer(cmdBuffer[0], VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
+        // Dispatch
+        VkQueue presentQueue;
+        deviceContext->vkGetDeviceQueue(deviceContext->device, queueFamilyIndices[0], 0, &presentQueue);
+        const VkPipelineStageFlags stageFlags[1] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+        VkSubmitInfo presentSubmitInfo;
+        presentSubmitInfo.sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        presentSubmitInfo.pNext                = nullptr;
+        presentSubmitInfo.waitSemaphoreCount   = 1;
+        presentSubmitInfo.pWaitSemaphores      = &swapchain.presentationSemaphore;
+        presentSubmitInfo.pWaitDstStageMask    = &stageFlags[0];
+        presentSubmitInfo.commandBufferCount   = 1;
+        presentSubmitInfo.pCommandBuffers      = &cmdBuffer[frameCount];
+        presentSubmitInfo.signalSemaphoreCount = 1;
+        presentSubmitInfo.pSignalSemaphores    = &swapchain.renderingDoneSemaphore;
+
+        // End render pass
+        deviceContext->vkCmdEndRenderPass(cmdBuffer[frameCount]);
+        swapchain.setImageLayout(cmdBuffer[frameCount], swapchain.getCurrentImage(), VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+        deviceContext->vkEndCommandBuffer(cmdBuffer[frameCount]);
+        assert(deviceContext->vkQueueSubmit(presentQueue, 1, &presentSubmitInfo, 0) == VK_SUCCESS);
+
+        // Present
+        swapchain.present(presentQueue);
+        // renderPool->resetCommandBuffer(cmdBuffer[frameCount], VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
+        frameCount++;
+        if (frameCount < 3){
+            assert( deviceContext->vkBeginCommandBuffer(cmdBuffer[frameCount], &cmdBufferBeginInfo) == VK_SUCCESS);
+        }
+    }
 
     // Wait
     std::cin.get();
