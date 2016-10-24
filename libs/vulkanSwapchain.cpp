@@ -1,14 +1,11 @@
 #include "vulkanSwapchain.h"
 
-VulkanSwapchain::VulkanSwapchain(VulkanDevice * __deviceContext, VkPhysicalDevice physicalDevice, VkSurfaceKHR swapchainSurface, std::vector<uint32_t> & supportedQueueFamilyIndices){
+VulkanSwapchain::VulkanSwapchain(VulkanDriverInstance * __instance, VulkanDevice * __deviceContext, VkPhysicalDevice __physicalDevice, std::vector<uint32_t> & supportedQueueFamilyIndices)
+: physicalDevice(__physicalDevice), queueFamilyIndices(supportedQueueFamilyIndices){
+    instance            = __instance;
     deviceContext       = __deviceContext;
-    surface             = swapchainSurface;
-    surfaceFormatIndex  = 0; // Default surface format
-    swapchainImageIndex = 0;
 
     assert(deviceContext != nullptr);
-
-    querySwapchain(physicalDevice);
 
     // Create presentation semaphore
     VkSemaphoreCreateInfo presentationSemaphoreCreateInfo = {
@@ -27,6 +24,123 @@ VulkanSwapchain::VulkanSwapchain(VulkanDevice * __deviceContext, VkPhysicalDevic
     };
 
     assert(deviceContext->vkCreateSemaphore(deviceContext->device, &renderingDoneSemaphoreCreateInfo, nullptr, &renderingDoneSemaphore) == VK_SUCCESS);
+}
+
+VulkanSwapchain::~VulkanSwapchain(){
+    deviceContext->vkDestroySwapchainKHR(deviceContext->device, swapchain, nullptr);
+
+    // Destroy images
+    swapchainImages.clear();
+
+    // Destroy image views
+    for (auto imageView : swapchainImageViews){
+        if (imageView != VK_NULL_HANDLE){
+            deviceContext->vkDestroyImageView(deviceContext->device, imageView, nullptr);
+        }
+    }
+    swapchainImageViews.clear();
+
+    // Destroy framebuffers
+    for (auto framebuffer : swapchainFramebuffers){
+        if (framebuffer != VK_NULL_HANDLE){
+            deviceContext->vkDestroyFramebuffer(deviceContext->device, framebuffer, nullptr);
+        }
+    }
+    swapchainFramebuffers.clear();
+
+    deviceContext->vkDestroySemaphore(deviceContext->device, presentationSemaphore, nullptr);
+    deviceContext->vkDestroySemaphore(deviceContext->device, renderingDoneSemaphore, nullptr);
+
+    // xcb_disconnect(connection);
+}
+
+#if defined (_WIN32) || defined (_WIN64)
+    void VulkanSwapchain::createWindow(HINSTANCE hInstance,
+                                       const uint32_t windowWidth,
+                                       const uint32_t windowHeight){
+        // Create a console
+        AllocConsole();
+        AttachConsole(GetCurrentProcessId());
+        freopen("CON", "w", stdout);
+        freopen("CON", "w", stderr);
+        LPCTSTR applicationName = "Win32 Vulkan - Test 1";
+        SetConsoleTitle(applicationName);
+
+        int screenWidth  = GetSystemMetrics(SM_CXSCREEN);
+        int screenHeight = GetSystemMetrics(SM_CYSCREEN);
+        int left         = screenWidth / 2 - windowWidth / 2;
+        int top          = screenHeight / 2 - windowHeight / 2;
+
+        // Create window
+        HWND windowHandle = CreateWindow(applicationName,
+            applicationName,
+            WS_OVERLAPPEDWINDOW | WS_CLIPSIBLINGS | WS_CLIPCHILDREN,
+            left, top,
+            windowWidth, windowHeight,
+            nullptr,
+            nullptr,
+            hInstance,
+            nullptr);
+
+        // Get VkSurfaceKHR
+        VkSurfaceKHR surface;
+        VkWin32SurfaceCreateInfoKHR surfaceCreateInfo;
+        surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
+        surfaceCreateInfo.flags = 0;
+        surfaceCreateInfo.hinstance = hInstance;
+        surfaceCreateInfo.hwnd = windowHandle;
+        assert( instance->vkCreateSurfaceKHR(instance->instance, &surfaceCreateInfo, nullptr, &surface) == VK_SUCCESS );
+
+        createWindowPlatformIndependent(surface);
+    }
+#elif defined (__linux__)
+    void VulkanSwapchain::createWindow(const uint32_t windowWidth,
+                                       const uint32_t windowHeight){
+        // Get XCB connection
+        xcb_connection_t * connection = xcb_connect (nullptr, nullptr);
+
+        // Get Screen 1
+        const xcb_setup_t * setup               = xcb_get_setup(connection);
+        xcb_screen_iterator_t  screenIterator   = xcb_setup_roots_iterator(setup);
+        xcb_screen_t * screen                   = screenIterator.data;
+
+        // Create window
+        xcb_window_t window = xcb_generate_id(connection);
+        xcb_create_window(connection,
+            XCB_COPY_FROM_PARENT,
+            window,
+            screen->root,
+            0, 0,
+            windowWidth, windowHeight,
+            10,
+            XCB_WINDOW_CLASS_INPUT_OUTPUT,
+            screen->root_visual,
+            0, nullptr);
+
+        // Map
+        xcb_map_window(connection, window);
+        xcb_flush(connection);
+
+        // Get VkSurfaceKHR
+        VkSurfaceKHR surface;
+        VkXcbSurfaceCreateInfoKHR surfaceCreateInfo;
+        surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR;
+        surfaceCreateInfo.flags = 0;
+        surfaceCreateInfo.connection = connection;
+        surfaceCreateInfo.window = window;
+
+        assert( instance->vkCreateSurfaceKHR(instance->instance, &surfaceCreateInfo, nullptr, &surface) == VK_SUCCESS );
+
+        createWindowPlatformIndependent(surface);
+    }
+#endif
+
+void VulkanSwapchain::createWindowPlatformIndependent(VkSurfaceKHR swapchainSurface){
+    surface             = swapchainSurface;
+    surfaceFormatIndex  = 0; // Default surface format
+    swapchainImageIndex = 0;
+
+    querySwapchain(physicalDevice);
 
     // Get surface image count
     uint32_t imageCount = surfaceCaps.minImageCount + 1;
@@ -45,8 +159,8 @@ VulkanSwapchain::VulkanSwapchain(VulkanDevice * __deviceContext, VkPhysicalDevic
     swapchainCreateInfo.imageArrayLayers        = 1;
     swapchainCreateInfo.imageUsage              = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
     swapchainCreateInfo.imageSharingMode        = VK_SHARING_MODE_EXCLUSIVE;
-    swapchainCreateInfo.queueFamilyIndexCount   = supportedQueueFamilyIndices.size();
-    swapchainCreateInfo.pQueueFamilyIndices     = &supportedQueueFamilyIndices[0];
+    swapchainCreateInfo.queueFamilyIndexCount   = queueFamilyIndices.size();
+    swapchainCreateInfo.pQueueFamilyIndices     = &queueFamilyIndices[0];
     swapchainCreateInfo.preTransform            = surfaceCaps.currentTransform;
     swapchainCreateInfo.compositeAlpha          = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
     swapchainCreateInfo.presentMode             = presentModes[0];
@@ -85,32 +199,6 @@ VulkanSwapchain::VulkanSwapchain(VulkanDevice * __deviceContext, VkPhysicalDevic
 
     assert(deviceContext->vkAcquireNextImageKHR(deviceContext->device, swapchain, UINT64_MAX, presentationSemaphore, VK_NULL_HANDLE, &swapchainImageIndex) == VK_SUCCESS);
     assert(swapchainImageIndex != 0xFFFFFFFF);
-}
-
-VulkanSwapchain::~VulkanSwapchain(){
-    deviceContext->vkDestroySwapchainKHR(deviceContext->device, swapchain, nullptr);
-
-    // Destroy images
-    swapchainImages.clear();
-
-    // Destroy image views
-    for (auto imageView : swapchainImageViews){
-        if (imageView != VK_NULL_HANDLE){
-            deviceContext->vkDestroyImageView(deviceContext->device, imageView, nullptr);
-        }
-    }
-    swapchainImageViews.clear();
-
-    // Destroy framebuffers
-    for (auto framebuffer : swapchainFramebuffers){
-        if (framebuffer != VK_NULL_HANDLE){
-            deviceContext->vkDestroyFramebuffer(deviceContext->device, framebuffer, nullptr);
-        }
-    }
-    swapchainFramebuffers.clear();
-
-    deviceContext->vkDestroySemaphore(deviceContext->device, presentationSemaphore, nullptr);
-    deviceContext->vkDestroySemaphore(deviceContext->device, renderingDoneSemaphore, nullptr);
 }
 
 VkFramebuffer VulkanSwapchain::getCurrentFramebuffer(){

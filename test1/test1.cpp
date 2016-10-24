@@ -5,8 +5,14 @@
 #include "vulkanRenderPass.h"
 #include "vulkanSwapchain.h"
 
+#if defined (_WIN32) || defined (_WIN64)
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
+                   LPSTR lpCmdLine, int nCmdShow){
+    VulkanDriverInstance instance("Windows");
+#elif defined (__linux__)
 int main(){
     VulkanDriverInstance instance("Linux");
+#endif
 
     if(instance.loader == nullptr){
         std::cout << "Vulkan library not found!" << std::endl;
@@ -40,44 +46,19 @@ int main(){
     vertexBufferData[8] = 0.0; // z[2]
 
     // VulkanBuffer vertexBuffer(deviceContext, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, vertexBufferData, sizeof(float) * 9, false);
-
-    // Get XCB connection
-    xcb_connection_t * connection = xcb_connect (nullptr, nullptr);
-
-    // Get Screen 1
-    const xcb_setup_t * setup               = xcb_get_setup(connection);
-    xcb_screen_iterator_t  screenIterator   = xcb_setup_roots_iterator(setup);
-    xcb_screen_t * screen                   = screenIterator.data;
-
-    // Create window
-    xcb_window_t window = xcb_generate_id(connection);
-    xcb_create_window(connection,
-        XCB_COPY_FROM_PARENT,
-        window,
-        screen->root,
-        0, 0,
-        512, 512,
-        10,
-        XCB_WINDOW_CLASS_INPUT_OUTPUT,
-        screen->root_visual,
-        0, nullptr);
-
-    // Map
-    xcb_map_window(connection, window);
-    xcb_flush(connection);
-
-    // Get VkSurfaceKHR
-    VkSurfaceKHR surface;
-    VkXcbSurfaceCreateInfoKHR surfaceCreateInfo;
-    surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR;
-    surfaceCreateInfo.flags = 0;
-    surfaceCreateInfo.connection = connection;
-    surfaceCreateInfo.window = window;
-
-    assert(instance.vkCreateSurfaceKHR(instance.instance, &surfaceCreateInfo, nullptr, &surface) == VK_SUCCESS);
+    
+    // Window geometry
+    const uint32_t windowWidth  = 512;
+    const uint32_t windowHeight = 512;
 
     std::vector<uint32_t> queueFamilyIndices = {0};
-    VulkanSwapchain swapchain(deviceContext, instance.physicalDevices[0], surface, queueFamilyIndices);
+    VulkanSwapchain swapchain(&instance, deviceContext, instance.physicalDevices[0], queueFamilyIndices);
+
+#if defined (_WIN32) || defined (_WIN64)
+    swapchain.createWindow(hInstance, windowWidth, windowHeight);
+#elif defined (__linux__)
+    swapchain.createWindow(windowWidth, windowHeight);
+#endif
 
     // Do rendering
     VulkanCommandPool * renderPool      = deviceContext->getCommandPool(VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT, queueFamilyIndices[0]);
@@ -190,7 +171,6 @@ int main(){
     renderPool->freeCommandBuffers(1, cmdBuffer);
     delete renderPool;
     // deviceContext->vkDestroyRenderPass(deviceContext->device, renderPass, nullptr);
-    xcb_disconnect(connection);
 
     return 0;
 }
