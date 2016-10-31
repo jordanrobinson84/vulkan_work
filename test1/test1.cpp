@@ -34,18 +34,27 @@ int main(){
     }
 
     // Set buffer data
-    float vertexBufferData[9];
-    vertexBufferData[0] = 0.2; // x[0]
-    vertexBufferData[1] = 0.2; // y[0]
-    vertexBufferData[2] = 0.0; // z[0]
-    vertexBufferData[3] = 0.2; // x[1]
-    vertexBufferData[4] = 0.8; // y[1]
-    vertexBufferData[5] = 0.0; // z[1]
-    vertexBufferData[6] = 0.8; // x[2]
-    vertexBufferData[7] = 0.5; // y[2]
-    vertexBufferData[8] = 0.0; // z[2]
+    float vertexBufferData[18];
+    vertexBufferData[0]  = 0.2; // x[0]
+    vertexBufferData[1]  = 0.2; // y[0]
+    vertexBufferData[2]  = 0.0; // z[0]
+    vertexBufferData[3]  = 0.2; // r[0]
+    vertexBufferData[4]  = 0.2; // g[0]
+    vertexBufferData[5]  = 0.0; // b[0]
+    vertexBufferData[6]  = 0.2; // x[1]
+    vertexBufferData[7]  = 0.8; // y[1]
+    vertexBufferData[8]  = 0.0; // z[1]
+    vertexBufferData[9]  = 0.2; // r[1]
+    vertexBufferData[10] = 0.8; // g[1]
+    vertexBufferData[11] = 0.0; // b[1]
+    vertexBufferData[12] = 0.8; // x[2]
+    vertexBufferData[13] = 0.5; // y[2]
+    vertexBufferData[14] = 0.0; // z[2]
+    vertexBufferData[15] = 0.8; // r[2]
+    vertexBufferData[16] = 0.5; // g[2]
+    vertexBufferData[17] = 0.0; // b[2]
 
-    // VulkanBuffer vertexBuffer(deviceContext, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, vertexBufferData, sizeof(float) * 9, false);
+    VulkanBuffer vertexBuffer(deviceContext, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, vertexBufferData, sizeof(float) * 18, false);
     
     // Window geometry
     const uint32_t windowWidth  = 512;
@@ -91,19 +100,6 @@ int main(){
         nullptr// pPreserveAttachments
     };
 
-    // VkRenderPassCreateInfo renderPassCreateInfo = {
-    //     VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
-    //     nullptr,
-    //     0,
-    //     1,
-    //     &defaultAttachment,
-    //     1,
-    //     &subpassDescription, // Need to fill in subpass
-    //     0,
-    //     nullptr
-    // };
-    // VkRenderPass renderPass;
-    // assert(deviceContext->vkCreateRenderPass(deviceContext->device, &renderPassCreateInfo, nullptr, &renderPass) == VK_SUCCESS);
     std::vector<VkAttachmentDescription> attachments = {defaultAttachment};
     std::vector<VkSubpassDescription> subpasses ={subpassDescription};
     std::vector<VkSubpassDependency> dependencies = {};
