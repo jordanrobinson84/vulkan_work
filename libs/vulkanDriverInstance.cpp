@@ -487,6 +487,15 @@ VulkanDriverInstance::VulkanDriverInstance(std::string applicationName){
     // Extensions
     std::vector<const char*> requestedExtensions    = { VK_KHR_SURFACE_EXTENSION_NAME };
     std::vector<const char*> requiredExtensions     = { VK_KHR_SURFACE_EXTENSION_NAME };
+
+#if defined (_WIN32) || defined (_WIN64)
+    requestedExtensions.push_back(VK_KHR_WIN32_SURFACE_EXTENSION_NAME);
+    requiredExtensions.push_back(VK_KHR_WIN32_SURFACE_EXTENSION_NAME);
+#elif defined (__linux__)
+    requestedExtensions.push_back(VK_KHR_XCB_SURFACE_EXTENSION_NAME);
+    requiredExtensions.push_back(VK_KHR_XCB_SURFACE_EXTENSION_NAME);
+#endif
+
     std::vector<const char*> enabledExtensions;
     uint32_t requiredExtensionsFound = 0;
     uint32_t extensionCount = 0;
