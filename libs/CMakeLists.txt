@@ -1,6 +1,6 @@
 include(GenerateExportHeader)
 
-add_library( vulkanRenderer STATIC vulkanBuffer.cpp vulkanCommandPool.cpp vulkanDriverInstance.cpp vulkanRenderPass.cpp vulkanSwapchain.cpp )
+add_library( vulkanRenderer STATIC vulkanBuffer.cpp vulkanCommandPool.cpp vulkanDriverInstance.cpp vulkanPipelineState.cpp vulkanRenderPass.cpp vulkanSwapchain.cpp )
 #[[generate_export_header( vulkanRenderer 
     BASE_NAME vulkanRenderer
     EXPORT_MACRO_NAME vulkanRenderer_EXPORT

@@ -4,6 +4,7 @@
 #include "vulkanBuffer.h"
 #include "vulkanRenderPass.h"
 #include "vulkanSwapchain.h"
+#include "vulkanPipelineState.h"
 
 #if defined (_WIN32) || defined (_WIN64)
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
@@ -55,6 +56,7 @@ int main(){
     vertexBufferData[17] = 0.0; // b[2]
 
     VulkanBuffer vertexBuffer(deviceContext, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, vertexBufferData, sizeof(float) * 18, false);
+	const VkDeviceSize vertexOffset = 0;
     
     // Window geometry
     const uint32_t windowWidth  = 512;
@@ -68,6 +70,94 @@ int main(){
 #elif defined (__linux__)
     swapchain.createWindow(windowWidth, windowHeight);
 #endif
+
+	VulkanPipelineState vps(deviceContext);
+
+	VkVertexInputBindingDescription vertexBindingDescription;
+	vertexBindingDescription.binding	= 0;
+	vertexBindingDescription.stride		= 6 * sizeof(float);
+	vertexBindingDescription.inputRate	= VK_VERTEX_INPUT_RATE_VERTEX;
+
+	VkVertexInputAttributeDescription positionInputDescription;
+	positionInputDescription.binding	= 0;
+	positionInputDescription.format		= VK_FORMAT_R32G32B32_SFLOAT;
+	positionInputDescription.location	= 0;
+	positionInputDescription.offset		= 0;
+
+	VkVertexInputAttributeDescription colorInputDescription;
+	colorInputDescription.binding	= 0;
+	colorInputDescription.format	= VK_FORMAT_R32G32B32_SFLOAT;
+	colorInputDescription.location	= 1;
+	colorInputDescription.offset	= 3 * sizeof(float);
+
+	std::vector<VkVertexInputBindingDescription> bindingDescriptions	 = { vertexBindingDescription };
+	std::vector<VkVertexInputAttributeDescription> attributeDescriptions = { positionInputDescription, colorInputDescription };
+	vps.setPrimitiveState(bindingDescriptions, attributeDescriptions, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+
+	// Get shader code
+	std::ifstream vertexStream("vert.spv", std::ifstream::binary | std::ifstream::ate);
+	uint32_t codeSize = vertexStream.tellg();
+	// Seek to beginning
+	vertexStream.seekg(0, vertexStream.beg);
+
+	VkShaderModuleCreateInfo vertexShaderInfo;
+	vertexShaderInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+	vertexShaderInfo.pNext = nullptr;
+	vertexShaderInfo.codeSize = codeSize;
+
+	char * codeBuffer = new char[codeSize];
+	vertexStream.read(codeBuffer, codeSize);
+	vertexStream.close();
+	vertexShaderInfo.pCode = (uint32_t *)codeBuffer;
+	vertexShaderInfo.flags = 0;
+
+	VkShaderModule vertexModule;
+	deviceContext->vkCreateShaderModule(deviceContext->device, &vertexShaderInfo, nullptr, &vertexModule);
+
+	VkPipelineShaderStageCreateInfo vertexStageInfo;
+	vertexStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	vertexStageInfo.pNext = nullptr;
+	vertexStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
+	vertexStageInfo.pName = "Passthrough Vertex Shader";
+	vertexStageInfo.pSpecializationInfo = nullptr;
+	vertexStageInfo.module = vertexModule;
+
+	// Get shader code
+	std::ifstream fragmentStream("frag.spv", std::ifstream::binary | std::ifstream::ate);
+	codeSize = fragmentStream.tellg();
+	// Seek to beginning
+	fragmentStream.seekg(0, fragmentStream.beg);
+
+	VkShaderModuleCreateInfo fragmentShaderInfo;
+	fragmentShaderInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+	fragmentShaderInfo.pNext = nullptr;
+	fragmentShaderInfo.codeSize = codeSize;
+
+	char * fragBuffer = new char[codeSize];
+	fragmentStream.read(fragBuffer, codeSize);
+	fragmentStream.close();
+	fragmentShaderInfo.pCode = (uint32_t *)fragBuffer;
+	fragmentShaderInfo.flags = 0;
+
+	VkShaderModule fragmentModule;
+	deviceContext->vkCreateShaderModule(deviceContext->device, &fragmentShaderInfo, nullptr, &fragmentModule);
+
+	VkPipelineShaderStageCreateInfo fragmentStageInfo;
+	fragmentStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	fragmentStageInfo.pNext = nullptr;
+	fragmentStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+	fragmentStageInfo.pName = "Passthrough Fragment Shader";
+	fragmentStageInfo.pSpecializationInfo = nullptr;
+	fragmentStageInfo.module = fragmentModule;
+	
+	std::vector<VkPipelineShaderStageCreateInfo> shaderStages;
+	shaderStages.push_back(vertexStageInfo);
+	shaderStages.push_back(fragmentStageInfo);
+	vps.pipelineInfo.pStages = &shaderStages[0];
+	vps.pipelineInfo.stageCount = 2;
+
+	VkRect2D scissorRect = { { 0, 0 }, swapchain.extent };
+	vps.setViewportState(swapchain.extent, scissorRect);
 
     // Do rendering
     VulkanCommandPool * renderPool      = deviceContext->getCommandPool(VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT, queueFamilyIndices[0]);
@@ -111,13 +201,29 @@ int main(){
         0,
         nullptr
     };
+	
+	std::vector<VkFence> submitFences;
+	submitFences.resize(3);
+	VkFenceCreateInfo submitFenceInfo;
+	submitFenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+	submitFenceInfo.pNext = nullptr;
+	submitFenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+	for (int i = 0; i < 3; i++) {
+		assert(deviceContext->vkCreateFence(deviceContext->device, &submitFenceInfo, nullptr, &submitFences[i]) == VK_SUCCESS);
+	}
+
     assert( deviceContext->vkBeginCommandBuffer(cmdBuffer[0], &cmdBufferBeginInfo) == VK_SUCCESS);
     swapchain.setupFramebuffers(cmdBuffer[0], rp.renderPass);
     // swapchain.setImageLayout(cmdBuffer[0], swapchain.getCurrentImage(), VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL); 
 
     uint32_t frameCount = 0;
+	VkQueue presentQueue;
+	deviceContext->vkGetDeviceQueue(deviceContext->device, queueFamilyIndices[0], 0, &presentQueue);
+	char loopChar = ' ';
 
-    while(frameCount < 2){
+    while(loopChar != '\r'){
+		int cmdBufferIndex = frameCount % 3;
+		int nextCmdBufferIndex = (frameCount + 1) % 3;
 
         // Begin the render pass
         VkClearValue colorClear = {0.0f, 1.0f, 0.0f, 1.0f};
@@ -130,11 +236,13 @@ int main(){
             1,
             &colorClear
         };
-        deviceContext->vkCmdBeginRenderPass(cmdBuffer[frameCount], &renderPassBegin, VK_SUBPASS_CONTENTS_INLINE);
+        deviceContext->vkCmdBeginRenderPass(cmdBuffer[cmdBufferIndex], &renderPassBegin, VK_SUBPASS_CONTENTS_INLINE);
+		deviceContext->vkCmdBindVertexBuffers(cmdBuffer[cmdBufferIndex], 0, 1, &vertexBuffer.bufferHandle, &vertexOffset);
+		deviceContext->vkCmdDraw(cmdBuffer[cmdBufferIndex], 3, 1, 0, 0);
 
         // Dispatch
-        VkQueue presentQueue;
-        deviceContext->vkGetDeviceQueue(deviceContext->device, queueFamilyIndices[0], 0, &presentQueue);
+        /*VkQueue presentQueue;
+        deviceContext->vkGetDeviceQueue(deviceContext->device, queueFamilyIndices[0], 0, &presentQueue);*/
         const VkPipelineStageFlags stageFlags[1] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
         VkSubmitInfo presentSubmitInfo;
         presentSubmitInfo.sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -143,30 +251,33 @@ int main(){
         presentSubmitInfo.pWaitSemaphores      = &swapchain.presentationSemaphore;
         presentSubmitInfo.pWaitDstStageMask    = &stageFlags[0];
         presentSubmitInfo.commandBufferCount   = 1;
-        presentSubmitInfo.pCommandBuffers      = &cmdBuffer[frameCount];
+        presentSubmitInfo.pCommandBuffers      = &cmdBuffer[cmdBufferIndex];
         presentSubmitInfo.signalSemaphoreCount = 1;
         presentSubmitInfo.pSignalSemaphores    = &swapchain.renderingDoneSemaphore;
 
         // End render pass
-        deviceContext->vkCmdEndRenderPass(cmdBuffer[frameCount]);
-        swapchain.setImageLayout(cmdBuffer[frameCount], swapchain.getCurrentImage(), VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
-        deviceContext->vkEndCommandBuffer(cmdBuffer[frameCount]);
-        assert(deviceContext->vkQueueSubmit(presentQueue, 1, &presentSubmitInfo, 0) == VK_SUCCESS);
+        deviceContext->vkCmdEndRenderPass(cmdBuffer[cmdBufferIndex]);
+        swapchain.setImageLayout(cmdBuffer[cmdBufferIndex], swapchain.getCurrentImage(), VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+        deviceContext->vkEndCommandBuffer(cmdBuffer[cmdBufferIndex]);
+        assert(deviceContext->vkQueueSubmit(presentQueue, 1, &presentSubmitInfo, submitFences[cmdBufferIndex]) == VK_SUCCESS);
 
         // Present
         swapchain.present(presentQueue);
-        // renderPool->resetCommandBuffer(cmdBuffer[frameCount], VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
+		deviceContext->vkWaitForFences(deviceContext->device, 1, &submitFences[nextCmdBufferIndex], VK_TRUE, 0x1000000);
+		deviceContext->vkResetFences(deviceContext->device, 1, &submitFences[nextCmdBufferIndex]);
+        renderPool->resetCommandBuffer(cmdBuffer[nextCmdBufferIndex], VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
         frameCount++;
-        if (frameCount < 3){
-            assert( deviceContext->vkBeginCommandBuffer(cmdBuffer[frameCount], &cmdBufferBeginInfo) == VK_SUCCESS);
-        }
+        // if (frameCount < 300){
+            assert( deviceContext->vkBeginCommandBuffer(cmdBuffer[nextCmdBufferIndex], &cmdBufferBeginInfo) == VK_SUCCESS);
+        // }
+		loopChar = std::cin.get();
     }
 
     // Wait
-    std::cin.get();
-    renderPool->freeCommandBuffers(1, cmdBuffer);
+    // std::cin.get();
+	assert(deviceContext->vkDeviceWaitIdle(deviceContext->device) == VK_SUCCESS);
+    renderPool->freeCommandBuffers(3, cmdBuffer);
     delete renderPool;
-    // deviceContext->vkDestroyRenderPass(deviceContext->device, renderPass, nullptr);
 
     return 0;
 }

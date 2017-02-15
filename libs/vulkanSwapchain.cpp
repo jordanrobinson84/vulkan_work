@@ -56,31 +56,75 @@ VulkanSwapchain::~VulkanSwapchain(){
 
 #if defined (_WIN32) || defined (_WIN64)
     void VulkanSwapchain::createWindow(HINSTANCE hInstance,
-                                       const uint32_t windowWidth,
-                                       const uint32_t windowHeight){
+                                       const uint32_t _windowWidth,
+                                       const uint32_t _windowHeight){
+		windowWidth = _windowWidth;
+		windowHeight = _windowHeight;
         // Create a console
-        AllocConsole();
-        AttachConsole(GetCurrentProcessId());
-        freopen("CON", "w", stdout);
-        freopen("CON", "w", stderr);
+        //AllocConsole();
+        //AttachConsole(GetCurrentProcessId());
+        //freopen("CON", "w", stdout);
+        //freopen("CON", "w", stderr);
         LPCTSTR applicationName = "Win32 Vulkan - Test 1";
-        SetConsoleTitle(applicationName);
+        //SetConsoleTitle(applicationName);
 
-        int screenWidth  = GetSystemMetrics(SM_CXSCREEN);
-        int screenHeight = GetSystemMetrics(SM_CYSCREEN);
-        int left         = screenWidth / 2 - windowWidth / 2;
-        int top          = screenHeight / 2 - windowHeight / 2;
+		WNDCLASSEX win_class;
+
+		// Initialize the window class structure:
+		win_class.cbSize = sizeof(WNDCLASSEX);
+		win_class.style = CS_HREDRAW | CS_VREDRAW;
+		win_class.lpfnWndProc = windowProcedure;
+		win_class.cbClsExtra = 0;
+		win_class.cbWndExtra = 0;
+		win_class.hInstance = hInstance; // hInstance
+		win_class.hIcon = LoadIcon(NULL, IDI_APPLICATION);
+		win_class.hCursor = LoadCursor(NULL, IDC_ARROW);
+		win_class.hbrBackground = (HBRUSH)GetStockObject(WHITE_BRUSH);
+		win_class.lpszMenuName = NULL;
+		win_class.lpszClassName = "Vulkan";
+		win_class.hIconSm = LoadIcon(NULL, IDI_WINLOGO);
+
+		// Register window class:
+		if (!RegisterClassEx(&win_class)) {
+			// It didn't work, so try to give a useful error:
+			std::cout << "Unexpected error trying to start the application!\n" << std::endl;
+			//fflush(stdout);
+			//exit(1);
+		}
+
+		RECT windowRect;
+        int screenWidth		= GetSystemMetrics(SM_CXSCREEN);
+        int screenHeight	= GetSystemMetrics(SM_CYSCREEN);
+        int left			= 100;
+        int top				= 100;
+		windowRect.bottom	= top + windowHeight;
+		windowRect.top		= top;
+		windowRect.left		= left;
+		windowRect.right	= left + windowWidth;
+
+		// Adjust the window rectangle to meet requirements
+		AdjustWindowRect(&windowRect, WS_OVERLAPPEDWINDOW, false);
+		windowWidth		= windowRect.right - windowRect.left;
+		windowHeight	= windowRect.bottom - windowRect.top;
 
         // Create window
-        HWND windowHandle = CreateWindow(applicationName,
+        HWND windowHandle = CreateWindowEx(0,
+			"Vulkan",
             applicationName,
-            WS_OVERLAPPEDWINDOW | WS_CLIPSIBLINGS | WS_CLIPCHILDREN,
-            left, top,
+            WS_OVERLAPPEDWINDOW | WS_VISIBLE | WS_SYSMENU,
+			windowRect.left, windowRect.top,
             windowWidth, windowHeight,
             nullptr,
             nullptr,
             hInstance,
             nullptr);
+
+		if (!windowHandle) {
+			std::cerr << "Couldn't create a window!" << std::endl;
+			DWORD lastError = GetLastError();
+			std::cerr << "Failed with error code " << lastError << std::endl;
+			assert(windowHandle != nullptr);
+		}
 
         // Get VkSurfaceKHR
         VkSurfaceKHR surface;
@@ -94,8 +138,10 @@ VulkanSwapchain::~VulkanSwapchain(){
         createWindowPlatformIndependent(surface);
     }
 #elif defined (__linux__)
-    void VulkanSwapchain::createWindow(const uint32_t windowWidth,
-                                       const uint32_t windowHeight){
+    void VulkanSwapchain::createWindow(const uint32_t _windowWidth,
+                                       const uint32_t _windowHeight){
+		windowWidth		= _windowWidth;
+		windowHeight	= _windowHeight;
         // Get XCB connection
         int screenNumber = 0;
         xcb_connection_t * connection = xcb_connect (nullptr, &screenNumber);
@@ -157,10 +203,13 @@ void VulkanSwapchain::createWindowPlatformIndependent(VkSurfaceKHR swapchainSurf
     swapchainImageIndex = 0;
 
     querySwapchain(physicalDevice);
+	swapchainFormat = surfaceFormats[surfaceFormatIndex].format;
 
     // Get surface image count
     uint32_t imageCount = surfaceCaps.minImageCount + 1;
-    imageCount = (imageCount > surfaceCaps.maxImageCount) ? surfaceCaps.maxImageCount : imageCount;
+	if (surfaceCaps.maxImageCount > 0) {
+		imageCount = (imageCount > surfaceCaps.maxImageCount) ? surfaceCaps.maxImageCount : imageCount;
+	}
 
     // Swapchain creation info
     VkSwapchainCreateInfoKHR swapchainCreateInfo;
@@ -169,7 +218,7 @@ void VulkanSwapchain::createWindowPlatformIndependent(VkSurfaceKHR swapchainSurf
     swapchainCreateInfo.flags                   = 0;
     swapchainCreateInfo.surface                 = surface;
     swapchainCreateInfo.minImageCount           = imageCount;
-    swapchainCreateInfo.imageFormat             = surfaceFormats[surfaceFormatIndex].format;
+    swapchainCreateInfo.imageFormat             = swapchainFormat;
     swapchainCreateInfo.imageColorSpace         = surfaceFormats[surfaceFormatIndex].colorSpace;
     swapchainCreateInfo.imageExtent             = extent;
     swapchainCreateInfo.imageArrayLayers        = 1;
@@ -186,14 +235,13 @@ void VulkanSwapchain::createWindowPlatformIndependent(VkSurfaceKHR swapchainSurf
     assert(deviceContext->vkCreateSwapchainKHR(deviceContext->device, &swapchainCreateInfo, nullptr, &swapchain) == VK_SUCCESS);
 
     // Get Swapchain images (access-controlled)
-    uint32_t swapchainImageCount = 0;
-    assert(deviceContext->vkGetSwapchainImagesKHR(deviceContext->device, swapchain, &swapchainImageCount, nullptr) == VK_SUCCESS);
-    assert(swapchainImageCount != 0);
-    swapchainImages = std::vector<VkImage>(swapchainImageCount);
-    assert(deviceContext->vkGetSwapchainImagesKHR(deviceContext->device, swapchain, &swapchainImageCount, &swapchainImages[0]) == VK_SUCCESS);
+    assert(deviceContext->vkGetSwapchainImagesKHR(deviceContext->device, swapchain, &imageCount, nullptr) == VK_SUCCESS);
+    assert(imageCount != 0);
+    swapchainImages = std::vector<VkImage>(imageCount);
+    assert(deviceContext->vkGetSwapchainImagesKHR(deviceContext->device, swapchain, &imageCount, &swapchainImages[0]) == VK_SUCCESS);
 
-    swapchainImageViews = std::vector<VkImageView>(imageCount);
-    swapchainFramebuffers = std::vector<VkFramebuffer>(imageCount);
+    swapchainImageViews		= std::vector<VkImageView>(imageCount);
+    swapchainFramebuffers	= std::vector<VkFramebuffer>(imageCount);
 
     for(uint32_t index = 0; index < imageCount; index++){
         std::cout << "Swapchain Image #" << index << ": " << swapchainImages[index] << std::endl;
@@ -205,8 +253,8 @@ void VulkanSwapchain::createWindowPlatformIndependent(VkSurfaceKHR swapchainSurf
             0,
             swapchainImages[index],
             VK_IMAGE_VIEW_TYPE_2D,
-            surfaceFormats[surfaceFormatIndex].format,
-            {VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A},
+            swapchainFormat,
+            {VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY },
             {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1}
         };
 
@@ -215,6 +263,8 @@ void VulkanSwapchain::createWindowPlatformIndependent(VkSurfaceKHR swapchainSurf
 
     assert(deviceContext->vkAcquireNextImageKHR(deviceContext->device, swapchain, UINT64_MAX, presentationSemaphore, VK_NULL_HANDLE, &swapchainImageIndex) == VK_SUCCESS);
     assert(swapchainImageIndex != 0xFFFFFFFF);
+
+	std::cout << "Window Creation Complete!" << std::endl;
 }
 
 VkFramebuffer VulkanSwapchain::getCurrentFramebuffer(){
@@ -237,7 +287,7 @@ void VulkanSwapchain::present(VkQueue presentationQueue){
     // Get the index of the image for rendering
     uint32_t acquireTimeout         = 0x1000000; // ~16.7 ms
 
-    std::cout << "Present - Swapchain Image Index: " << swapchainImageIndex << std::endl;
+    // std::cout << "Present - Swapchain Image Index: " << swapchainImageIndex << std::endl;
 
     // Present
     VkResult presentResult;
@@ -301,10 +351,14 @@ void VulkanSwapchain::querySwapchain(VkPhysicalDevice physicalDevice){
     }
 
     // Query Swapchain surface capabilities
-    assert(deviceContext->instance->vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, &surfaceCaps) == VK_SUCCESS);
-    if (surfaceCaps.currentExtent.width < 1 || surfaceCaps.currentExtent.height < 1){
-        extent.width    = 512;
-        extent.height   = 512;
+	VkResult result = deviceContext->instance->vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, &surfaceCaps);
+	assert(result == VK_SUCCESS);
+	if (surfaceCaps.currentExtent.width < 1 || surfaceCaps.currentExtent.height < 1 || surfaceCaps.currentExtent.width == (std::numeric_limits<uint32_t>::max)() ) { // Prevent macro expansion of conflicting windows.h max define
+        extent.width    = windowWidth;
+        extent.height   = windowHeight;
+
+		extent.width	= (std::max)(surfaceCaps.minImageExtent.width, (std::min)(extent.width, surfaceCaps.maxImageExtent.width));
+		extent.height	= (std::max)(surfaceCaps.minImageExtent.height, (std::min)(extent.height, surfaceCaps.maxImageExtent.height));
     }else{
         extent = surfaceCaps.currentExtent;
     }
@@ -393,21 +447,8 @@ void VulkanSwapchain::setupFramebuffers(VkCommandBuffer cmdBuffer, VkRenderPass 
         // deviceContext->allocateAndBindMemory(swapchainImages[index], false);
         std::cout << "Swapchain Image #" << index << ": " << swapchainImages[index] << std::endl;
 
-        // Image View creation
-        // VkImageViewCreateInfo imageCreateInfo = {
-        //     VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-        //     nullptr,
-        //     0,
-        //     swapchainImages[index],
-        //     VK_IMAGE_VIEW_TYPE_2D,
-        //     surfaceFormats[surfaceFormatIndex].format,
-        //     {VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A},
-        //     {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1}
-        // };
-
         // Set layout before creating image view
         setImageLayout(cmdBuffer, swapchainImages[index], VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-        // assert(deviceContext->vkCreateImageView(deviceContext->device, &imageCreateInfo, nullptr, &swapchainImageViews[index]) == VK_SUCCESS);
 
         // Framebuffer creation
         VkFramebufferCreateInfo framebufferCreateInfo = {
@@ -416,13 +457,16 @@ void VulkanSwapchain::setupFramebuffers(VkCommandBuffer cmdBuffer, VkRenderPass 
             0,
             renderPass,
             1,
-            &swapchainImageViews[index],
+            &(swapchainImageViews[index]),
             extent.width,
             extent.height,
             1
         };
 
-        assert(deviceContext->vkCreateFramebuffer(deviceContext->device, &framebufferCreateInfo, nullptr, &swapchainFramebuffers[index]) == VK_SUCCESS);
-        deviceContext->allocateAndBindMemory(swapchainImages[index], false);
+        assert(deviceContext->vkCreateFramebuffer(deviceContext->device, &framebufferCreateInfo, nullptr, &(swapchainFramebuffers[index])) == VK_SUCCESS);
     }
+}
+
+LRESULT CALLBACK VulkanSwapchain::windowProcedure(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
+	return DefWindowProc(hWnd, uMsg, wParam, lParam);
 }

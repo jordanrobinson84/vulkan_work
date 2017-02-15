@@ -325,6 +325,8 @@ VulkanDevice::VulkanDevice(VulkanDriverInstance * __instance, uint32_t deviceNum
     VK_DEVICE_FUNCTION(vkMapMemory);
     VK_DEVICE_FUNCTION(vkMergePipelineCaches);
 
+	VK_DEVICE_FUNCTION(vkQueueWaitIdle);
+
     // Reset
     VK_DEVICE_FUNCTION(vkResetCommandBuffer);
     VK_DEVICE_FUNCTION(vkResetCommandPool);

@@ -29,12 +29,14 @@
 #include <vulkan/vk_sdk_platform.h>
 #include <vulkan/vulkan.h>
 #include <vulkan/vk_icd.h>
+#include <algorithm>
 #include <vector>
 #include <iostream>
 #include <cassert>
 #include <cstring>
 #include <string>
 #include <memory>
+#include <fstream>
 #include "vulkanCommandPool.h"
 
 #define VK_EXPORTED_FUNCTION(function) PFN_##function function
@@ -192,6 +194,8 @@ struct VulkanDevice{
     VK_DEVICE_FUNCTION(vkInvalidateMappedMemoryRanges);
     VK_DEVICE_FUNCTION(vkMapMemory);
     VK_DEVICE_FUNCTION(vkMergePipelineCaches);
+
+	VK_DEVICE_FUNCTION(vkQueueWaitIdle);
 
     // Reset
     VK_DEVICE_FUNCTION(vkResetCommandBuffer);
