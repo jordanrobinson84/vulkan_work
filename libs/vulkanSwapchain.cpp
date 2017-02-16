@@ -58,8 +58,8 @@ VulkanSwapchain::~VulkanSwapchain(){
     void VulkanSwapchain::createWindow(HINSTANCE hInstance,
                                        const uint32_t _windowWidth,
                                        const uint32_t _windowHeight){
-		windowWidth = _windowWidth;
-		windowHeight = _windowHeight;
+        windowWidth = _windowWidth;
+        windowHeight = _windowHeight;
         // Create a console
         //AllocConsole();
         //AttachConsole(GetCurrentProcessId());
@@ -68,63 +68,63 @@ VulkanSwapchain::~VulkanSwapchain(){
         LPCTSTR applicationName = "Win32 Vulkan - Test 1";
         //SetConsoleTitle(applicationName);
 
-		WNDCLASSEX win_class;
+        WNDCLASSEX win_class;
 
-		// Initialize the window class structure:
-		win_class.cbSize = sizeof(WNDCLASSEX);
-		win_class.style = CS_HREDRAW | CS_VREDRAW;
-		win_class.lpfnWndProc = windowProcedure;
-		win_class.cbClsExtra = 0;
-		win_class.cbWndExtra = 0;
-		win_class.hInstance = hInstance; // hInstance
-		win_class.hIcon = LoadIcon(NULL, IDI_APPLICATION);
-		win_class.hCursor = LoadCursor(NULL, IDC_ARROW);
-		win_class.hbrBackground = (HBRUSH)GetStockObject(WHITE_BRUSH);
-		win_class.lpszMenuName = NULL;
-		win_class.lpszClassName = "Vulkan";
-		win_class.hIconSm = LoadIcon(NULL, IDI_WINLOGO);
+        // Initialize the window class structure:
+        win_class.cbSize = sizeof(WNDCLASSEX);
+        win_class.style = CS_HREDRAW | CS_VREDRAW;
+        win_class.lpfnWndProc = windowProcedure;
+        win_class.cbClsExtra = 0;
+        win_class.cbWndExtra = 0;
+        win_class.hInstance = hInstance; // hInstance
+        win_class.hIcon = LoadIcon(NULL, IDI_APPLICATION);
+        win_class.hCursor = LoadCursor(NULL, IDC_ARROW);
+        win_class.hbrBackground = (HBRUSH)GetStockObject(WHITE_BRUSH);
+        win_class.lpszMenuName = NULL;
+        win_class.lpszClassName = "Vulkan";
+        win_class.hIconSm = LoadIcon(NULL, IDI_WINLOGO);
 
-		// Register window class:
-		if (!RegisterClassEx(&win_class)) {
-			// It didn't work, so try to give a useful error:
-			std::cout << "Unexpected error trying to start the application!\n" << std::endl;
-			//fflush(stdout);
-			//exit(1);
-		}
+        // Register window class:
+        if (!RegisterClassEx(&win_class)) {
+            // It didn't work, so try to give a useful error:
+            std::cout << "Unexpected error trying to start the application!\n" << std::endl;
+            //fflush(stdout);
+            //exit(1);
+        }
 
-		RECT windowRect;
-        int screenWidth		= GetSystemMetrics(SM_CXSCREEN);
-        int screenHeight	= GetSystemMetrics(SM_CYSCREEN);
-        int left			= 100;
-        int top				= 100;
-		windowRect.bottom	= top + windowHeight;
-		windowRect.top		= top;
-		windowRect.left		= left;
-		windowRect.right	= left + windowWidth;
+        RECT windowRect;
+        int screenWidth     = GetSystemMetrics(SM_CXSCREEN);
+        int screenHeight    = GetSystemMetrics(SM_CYSCREEN);
+        int left            = 100;
+        int top             = 100;
+        windowRect.bottom   = top + windowHeight;
+        windowRect.top      = top;
+        windowRect.left     = left;
+        windowRect.right    = left + windowWidth;
 
-		// Adjust the window rectangle to meet requirements
-		AdjustWindowRect(&windowRect, WS_OVERLAPPEDWINDOW, false);
-		windowWidth		= windowRect.right - windowRect.left;
-		windowHeight	= windowRect.bottom - windowRect.top;
+        // Adjust the window rectangle to meet requirements
+        AdjustWindowRect(&windowRect, WS_OVERLAPPEDWINDOW, false);
+        windowWidth     = windowRect.right - windowRect.left;
+        windowHeight    = windowRect.bottom - windowRect.top;
 
         // Create window
         HWND windowHandle = CreateWindowEx(0,
-			"Vulkan",
+            "Vulkan",
             applicationName,
             WS_OVERLAPPEDWINDOW | WS_VISIBLE | WS_SYSMENU,
-			windowRect.left, windowRect.top,
+            windowRect.left, windowRect.top,
             windowWidth, windowHeight,
             nullptr,
             nullptr,
             hInstance,
             nullptr);
 
-		if (!windowHandle) {
-			std::cerr << "Couldn't create a window!" << std::endl;
-			DWORD lastError = GetLastError();
-			std::cerr << "Failed with error code " << lastError << std::endl;
-			assert(windowHandle != nullptr);
-		}
+        if (!windowHandle) {
+            std::cerr << "Couldn't create a window!" << std::endl;
+            DWORD lastError = GetLastError();
+            std::cerr << "Failed with error code " << lastError << std::endl;
+            assert(windowHandle != nullptr);
+        }
 
         // Get VkSurfaceKHR
         VkSurfaceKHR surface;
@@ -140,8 +140,8 @@ VulkanSwapchain::~VulkanSwapchain(){
 #elif defined (__linux__)
     void VulkanSwapchain::createWindow(const uint32_t _windowWidth,
                                        const uint32_t _windowHeight){
-		windowWidth		= _windowWidth;
-		windowHeight	= _windowHeight;
+        windowWidth     = _windowWidth;
+        windowHeight    = _windowHeight;
         // Get XCB connection
         int screenNumber = 0;
         xcb_connection_t * connection = xcb_connect (nullptr, &screenNumber);
@@ -203,13 +203,13 @@ void VulkanSwapchain::createWindowPlatformIndependent(VkSurfaceKHR swapchainSurf
     swapchainImageIndex = 0;
 
     querySwapchain(physicalDevice);
-	swapchainFormat = surfaceFormats[surfaceFormatIndex].format;
+    swapchainFormat = surfaceFormats[surfaceFormatIndex].format;
 
     // Get surface image count
     uint32_t imageCount = surfaceCaps.minImageCount + 1;
-	if (surfaceCaps.maxImageCount > 0) {
-		imageCount = (imageCount > surfaceCaps.maxImageCount) ? surfaceCaps.maxImageCount : imageCount;
-	}
+    if (surfaceCaps.maxImageCount > 0) {
+        imageCount = (imageCount > surfaceCaps.maxImageCount) ? surfaceCaps.maxImageCount : imageCount;
+    }
 
     // Swapchain creation info
     VkSwapchainCreateInfoKHR swapchainCreateInfo;
@@ -240,8 +240,8 @@ void VulkanSwapchain::createWindowPlatformIndependent(VkSurfaceKHR swapchainSurf
     swapchainImages = std::vector<VkImage>(imageCount);
     assert(deviceContext->vkGetSwapchainImagesKHR(deviceContext->device, swapchain, &imageCount, &swapchainImages[0]) == VK_SUCCESS);
 
-    swapchainImageViews		= std::vector<VkImageView>(imageCount);
-    swapchainFramebuffers	= std::vector<VkFramebuffer>(imageCount);
+    swapchainImageViews     = std::vector<VkImageView>(imageCount);
+    swapchainFramebuffers   = std::vector<VkFramebuffer>(imageCount);
 
     for(uint32_t index = 0; index < imageCount; index++){
         std::cout << "Swapchain Image #" << index << ": " << swapchainImages[index] << std::endl;
@@ -264,7 +264,7 @@ void VulkanSwapchain::createWindowPlatformIndependent(VkSurfaceKHR swapchainSurf
     assert(deviceContext->vkAcquireNextImageKHR(deviceContext->device, swapchain, UINT64_MAX, presentationSemaphore, VK_NULL_HANDLE, &swapchainImageIndex) == VK_SUCCESS);
     assert(swapchainImageIndex != 0xFFFFFFFF);
 
-	std::cout << "Window Creation Complete!" << std::endl;
+    std::cout << "Window Creation Complete!" << std::endl;
 }
 
 VkFramebuffer VulkanSwapchain::getCurrentFramebuffer(){
@@ -351,14 +351,14 @@ void VulkanSwapchain::querySwapchain(VkPhysicalDevice physicalDevice){
     }
 
     // Query Swapchain surface capabilities
-	VkResult result = deviceContext->instance->vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, &surfaceCaps);
-	assert(result == VK_SUCCESS);
-	if (surfaceCaps.currentExtent.width < 1 || surfaceCaps.currentExtent.height < 1 || surfaceCaps.currentExtent.width == (std::numeric_limits<uint32_t>::max)() ) { // Prevent macro expansion of conflicting windows.h max define
+    VkResult result = deviceContext->instance->vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, &surfaceCaps);
+    assert(result == VK_SUCCESS);
+    if (surfaceCaps.currentExtent.width < 1 || surfaceCaps.currentExtent.height < 1 || surfaceCaps.currentExtent.width == (std::numeric_limits<uint32_t>::max)() ) { // Prevent macro expansion of conflicting windows.h max define
         extent.width    = windowWidth;
         extent.height   = windowHeight;
 
-		extent.width	= (std::max)(surfaceCaps.minImageExtent.width, (std::min)(extent.width, surfaceCaps.maxImageExtent.width));
-		extent.height	= (std::max)(surfaceCaps.minImageExtent.height, (std::min)(extent.height, surfaceCaps.maxImageExtent.height));
+        extent.width    = (std::max)(surfaceCaps.minImageExtent.width, (std::min)(extent.width, surfaceCaps.maxImageExtent.width));
+        extent.height   = (std::max)(surfaceCaps.minImageExtent.height, (std::min)(extent.height, surfaceCaps.maxImageExtent.height));
     }else{
         extent = surfaceCaps.currentExtent;
     }
@@ -468,5 +468,5 @@ void VulkanSwapchain::setupFramebuffers(VkCommandBuffer cmdBuffer, VkRenderPass 
 }
 
 LRESULT CALLBACK VulkanSwapchain::windowProcedure(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
-	return DefWindowProc(hWnd, uMsg, wParam, lParam);
+    return DefWindowProc(hWnd, uMsg, wParam, lParam);
 }

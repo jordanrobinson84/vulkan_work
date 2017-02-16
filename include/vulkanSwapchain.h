@@ -26,7 +26,7 @@ public:
     void setupFramebuffers(VkCommandBuffer cmdBuffer, VkRenderPass renderPass);
     // void setupSwapchain(VkCommandBuffer cmdBuffer, VkRenderPass renderPass);
 #if defined (_WIN32) || defined (_WIN64)
-	static LRESULT CALLBACK VulkanSwapchain::windowProcedure(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+    static LRESULT CALLBACK VulkanSwapchain::windowProcedure(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 #endif
 
     VulkanDriverInstance *          instance;
@@ -45,8 +45,8 @@ public:
     VkSemaphore                     presentationSemaphore;
     VkSemaphore                     renderingDoneSemaphore;
     uint32_t                        surfaceFormatIndex;
-	VkFormat						swapchainFormat;
+    VkFormat                        swapchainFormat;
     uint32_t                        swapchainImageIndex;
-	uint32_t						windowHeight;
-	uint32_t						windowWidth;
+    uint32_t                        windowHeight;
+    uint32_t                        windowWidth;
 };
