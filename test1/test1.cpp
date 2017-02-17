@@ -136,6 +136,48 @@ int main(){
     std::vector<VkSubpassDependency> dependencies = {};
     VulkanRenderPass rp(deviceContext, attachments, subpasses, dependencies);
 
+    // Blend states
+    VkPipelineColorBlendAttachmentState attachmentBlendState;
+    attachmentBlendState.blendEnable            = VK_FALSE;
+    attachmentBlendState.srcColorBlendFactor    = VK_BLEND_FACTOR_ZERO;
+    attachmentBlendState.dstColorBlendFactor    = VK_BLEND_FACTOR_ZERO;
+    attachmentBlendState.colorBlendOp           = VK_BLEND_OP_ADD;
+    attachmentBlendState.srcAlphaBlendFactor    = VK_BLEND_FACTOR_ZERO;
+    attachmentBlendState.dstAlphaBlendFactor    = VK_BLEND_FACTOR_ZERO;
+    attachmentBlendState.alphaBlendOp           = VK_BLEND_OP_ADD;
+    attachmentBlendState.colorWriteMask         = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+
+    VkPipelineColorBlendStateCreateInfo blendState;
+    blendState.sType                = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+    blendState.pNext                = nullptr;
+    blendState.flags                = 0; //MBZ
+    blendState.logicOpEnable        = VK_FALSE;
+    blendState.logicOp              = VK_LOGIC_OP_NO_OP;
+    blendState.attachmentCount      = subpasses[0].colorAttachmentCount;
+    blendState.pAttachments         = &attachmentBlendState;
+    blendState.blendConstants[0]    = 1.0;
+    blendState.blendConstants[1]    = 1.0;
+    blendState.blendConstants[2]    = 1.0;
+    blendState.blendConstants[3]    = 1.0;
+    vps.pipelineInfo.pColorBlendState = &blendState;
+
+    vps.pipelineInfo.renderPass = rp.renderPass;
+
+    // Pipeline layout setup
+    VkPipelineLayout layout;
+    VkPipelineLayoutCreateInfo layoutInfo;
+    layoutInfo.sType                    = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    layoutInfo.pNext                    = nullptr;
+    layoutInfo.flags                    = 0;
+    layoutInfo.setLayoutCount           = 0;        // No descriptor sets enabled
+    layoutInfo.pSetLayouts              = nullptr;  // No descriptor sets enabled
+    layoutInfo.pushConstantRangeCount   = 0;
+    layoutInfo.pPushConstantRanges      = nullptr;
+    assert(deviceContext->vkCreatePipelineLayout(deviceContext->device, &layoutInfo, nullptr, &layout) == VK_SUCCESS);
+    vps.pipelineInfo.layout = layout;
+
+    vps.complete();
+
     VkCommandBufferBeginInfo cmdBufferBeginInfo = {
         VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
         nullptr,

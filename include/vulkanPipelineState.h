@@ -29,10 +29,13 @@ public:
                           std::pair<float, float> viewportOffset = { 0.0f,0.0f },
                           std::pair<float, float> depthRange = { 0.0f, 1.0f });
 
-    bool complete();
+    void complete();
+    bool completed();
 
     VulkanDevice *                                  deviceContext;
+    bool                                            isComplete;
     VkGraphicsPipelineCreateInfo                    pipelineInfo;
+    VkPipeline                                      pipeline;
     std::vector<VkPipelineShaderStageCreateInfo>    shaderStages;
     VkShaderStageFlags                              unusedStageFlags;
 };

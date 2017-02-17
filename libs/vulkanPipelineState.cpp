@@ -1,7 +1,9 @@
 #include "vulkanPipelineState.h"
 
 VulkanPipelineState::VulkanPipelineState(VulkanDevice                          * __deviceContext) {
-    deviceContext = __deviceContext;
+    deviceContext   = __deviceContext;
+    isComplete      = true;
+
     pipelineInfo.pColorBlendState       = nullptr;
     pipelineInfo.pDepthStencilState     = nullptr;
     pipelineInfo.pDynamicState          = nullptr;
@@ -15,6 +17,8 @@ VulkanPipelineState::VulkanPipelineState(VulkanDevice                          *
     pipelineInfo.pViewportState         = nullptr;
 
     unusedStageFlags = VK_SHADER_STAGE_ALL_GRAPHICS | VK_SHADER_STAGE_COMPUTE_BIT;
+    pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
+    pipelineInfo.basePipelineIndex  = -1;
 }
 
 VulkanPipelineState::~VulkanPipelineState() {
@@ -96,6 +100,7 @@ void VulkanPipelineState::addShaderStage(std::string shaderFileName, VkShaderSta
             pipelineInfo.stageCount = 1;
         }
         pipelineInfo.stageCount++;
+        unusedStageFlags = usedFlagTest;
     }else{
         std::cerr << "Error opening shader file: " << shaderFileName << std::endl;
     }
@@ -203,6 +208,14 @@ void VulkanPipelineState::setViewportState(VkExtent2D &viewportExtent,
     pipelineInfo.pViewportState = viewportInfo;
 }
 
-bool VulkanPipelineState::complete() {
-    return true;
+void VulkanPipelineState::complete() {
+    if (!isComplete){
+        // TODO: Option to use pipeline caching
+        assert(deviceContext->vkCreateGraphicsPipelines(deviceContext->device, VK_NULL_HANDLE, 1, &pipelineInfo, VK_NULL_HANDLE, &pipeline) == VK_SUCCESS);
+        isComplete = true;
+    }
+}
+
+bool VulkanPipelineState::completed() {
+    return isComplete;
 }
