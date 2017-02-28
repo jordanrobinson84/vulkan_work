@@ -127,7 +127,6 @@ VulkanSwapchain::~VulkanSwapchain(){
         }
 
         // Get VkSurfaceKHR
-        VkSurfaceKHR surface;
         VkWin32SurfaceCreateInfoKHR surfaceCreateInfo;
         surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
         surfaceCreateInfo.flags = 0;
@@ -184,7 +183,6 @@ VulkanSwapchain::~VulkanSwapchain(){
         xcb_flush(connection);
 
         // Get VkSurfaceKHR
-        VkSurfaceKHR surface;
         VkXcbSurfaceCreateInfoKHR surfaceCreateInfo;
         surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR;
         surfaceCreateInfo.flags = 0;

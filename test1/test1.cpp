@@ -94,9 +94,6 @@ int main(){
     std::vector<VkVertexInputAttributeDescription> attributeDescriptions = { positionInputDescription, colorInputDescription };
     vps.setPrimitiveState(bindingDescriptions, attributeDescriptions, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
 
-    vps.addShaderStage("vert.spv", VK_SHADER_STAGE_VERTEX_BIT, "Passthrough Vertex Shader");
-    vps.addShaderStage("frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT, "Passthrough Fragment Shader");
-
     VkRect2D scissorRect = { { 0, 0 }, swapchain.extent };
     vps.setViewportState(swapchain.extent, scissorRect);
 
@@ -176,6 +173,8 @@ int main(){
     assert(deviceContext->vkCreatePipelineLayout(deviceContext->device, &layoutInfo, nullptr, &layout) == VK_SUCCESS);
     vps.pipelineInfo.layout = layout;
 
+	vps.addShaderStage("vert.spv", VK_SHADER_STAGE_VERTEX_BIT, "main");
+	vps.addShaderStage("frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT, "main");
     vps.complete();
 
     VkCommandBufferBeginInfo cmdBufferBeginInfo = {
@@ -219,6 +218,7 @@ int main(){
             1,
             &colorClear
         };
+        deviceContext->vkCmdBindPipeline(cmdBuffer[cmdBufferIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, vps.pipeline);
         deviceContext->vkCmdBeginRenderPass(cmdBuffer[cmdBufferIndex], &renderPassBegin, VK_SUBPASS_CONTENTS_INLINE);
         deviceContext->vkCmdBindVertexBuffers(cmdBuffer[cmdBufferIndex], 0, 1, &vertexBuffer.bufferHandle, &vertexOffset);
         deviceContext->vkCmdDraw(cmdBuffer[cmdBufferIndex], 3, 1, 0, 0);

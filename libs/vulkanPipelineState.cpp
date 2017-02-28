@@ -2,8 +2,12 @@
 
 VulkanPipelineState::VulkanPipelineState(VulkanDevice                          * __deviceContext) {
     deviceContext   = __deviceContext;
-    isComplete      = true;
+    isComplete      = false;
 
+	pipelineInfo.sType					= VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+	pipelineInfo.flags					= 0;
+    pipelineInfo.stageCount             = 0;
+	pipelineInfo.subpass				= VK_NULL_HANDLE;
     pipelineInfo.pColorBlendState       = nullptr;
     pipelineInfo.pDepthStencilState     = nullptr;
     pipelineInfo.pDynamicState          = nullptr;
@@ -37,6 +41,7 @@ VulkanPipelineState::~VulkanPipelineState() {
 
     if (pipelineInfo.pStages != nullptr){
         shaderStages.clear();
+		pipelineInfo.stageCount = 0;
         pipelineInfo.pStages = nullptr;
     }
 
@@ -49,37 +54,39 @@ VulkanPipelineState::~VulkanPipelineState() {
     }
 }
 
-void VulkanPipelineState::addShaderStage(std::string shaderFileName, VkShaderStageFlagBits stage, std::string entryPointName, VkSpecializationInfo * specialization){
+void VulkanPipelineState::addShaderStage(std::string shaderFileName, VkShaderStageFlagBits stage, const std::string entryPointName, VkSpecializationInfo * specialization){
     // Check that the requested stage isn't already used
-    VkShaderStageFlags usedFlagTest = unusedStageFlags | stage;
-    if (usedFlagTest != unusedStageFlags){
-        std::cerr << "Requested shader stage has already been used:" << std::endl;
-        std::cerr << "   File name:" << shaderFileName << std::endl;
-        std::cerr << "   Stage:" << stage << std::endl;
-        std::cerr << "   Entry point name:" << entryPointName << std::endl;
+    VkShaderStageFlags usedFlagTest = unusedStageFlags & ~stage;
+    if (usedFlagTest == unusedStageFlags){
+        std::cout << "Requested shader stage has already been used:" << std::endl;
+        std::cout << "   File name:" << shaderFileName << std::endl;
+        std::cout << "   Stage:" << stage << std::endl;
+        std::cout << "   Entry point name:" << entryPointName << std::endl;
         return;
     }
 
     // Get shader code
-    std::ifstream shaderStream(shaderFileName, std::ifstream::binary | std::ifstream::ate);
-    if(shaderStream.is_open()){
-        uint32_t codeSize = shaderStream.tellg();
+    std::ifstream shaderStream(shaderFileName, std::ifstream::binary);
+    if(shaderStream){
+		shaderStream.seekg(0, shaderStream.end);
+        int32_t codeSize = shaderStream.tellg();
+		assert(codeSize != -1);
         // Seek to beginning
         shaderStream.seekg(0, shaderStream.beg);
 
         VkShaderModuleCreateInfo shaderInfo;
         shaderInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
         shaderInfo.pNext = nullptr;
-        shaderInfo.codeSize = codeSize;
+        shaderInfo.codeSize = (uint32_t)codeSize;
 
         char * codeBuffer = new char[codeSize];
         shaderStream.read(codeBuffer, codeSize);
         shaderStream.close();
-        shaderInfo.pCode = (uint32_t *)(&codeBuffer);
+        shaderInfo.pCode = (uint32_t *)(codeBuffer);
         shaderInfo.flags = 0;
 
         VkShaderModule shaderModule;
-        deviceContext->vkCreateShaderModule(deviceContext->device, &shaderInfo, nullptr, &shaderModule);
+        assert(deviceContext->vkCreateShaderModule(deviceContext->device, &shaderInfo, nullptr, &shaderModule) == VK_SUCCESS);
 
         delete[] codeBuffer;
 
@@ -90,19 +97,17 @@ void VulkanPipelineState::addShaderStage(std::string shaderFileName, VkShaderSta
         createInfo.flags                = 0;
         createInfo.stage                = stage;
         createInfo.module               = shaderModule;
-        createInfo.pName                = entryPointName.c_str();
+		//createInfo.pName				= entryPointName.c_str();
+		createInfo.pName				= "main";
         createInfo.pSpecializationInfo  = specialization;
 
         shaderStages.push_back(createInfo);
 
-        if (pipelineInfo.pStages == nullptr){
-            pipelineInfo.pStages = &shaderStages[0];
-            pipelineInfo.stageCount = 1;
-        }
         pipelineInfo.stageCount++;
         unusedStageFlags = usedFlagTest;
     }else{
-        std::cerr << "Error opening shader file: " << shaderFileName << std::endl;
+        std::cout << "Error opening shader file: " << shaderFileName << std::endl;
+		assert(shaderStream.is_open());
     }
 }
 
@@ -154,6 +159,8 @@ void VulkanPipelineState::setPrimitiveState(std::vector<VkVertexInputBindingDesc
     rasterizationInfo->depthBiasConstantFactor  = depthBiasConstantFactor;
     rasterizationInfo->depthBiasClamp           = depthBiasClamp;
     rasterizationInfo->depthBiasSlopeFactor     = depthBiasSlopeFactor;
+	rasterizationInfo->lineWidth				= lineWidth;
+	rasterizationInfo->rasterizerDiscardEnable	= VK_TRUE;
     
     if (pipelineInfo.pRasterizationState != nullptr) {
         delete pipelineInfo.pRasterizationState;
@@ -211,8 +218,11 @@ void VulkanPipelineState::setViewportState(VkExtent2D &viewportExtent,
 void VulkanPipelineState::complete() {
     if (!isComplete){
         // TODO: Option to use pipeline caching
+		pipelineInfo.pStages = &shaderStages[0];
+		assert(pipelineInfo.pStages != nullptr); // Vertex shader required
         assert(deviceContext->vkCreateGraphicsPipelines(deviceContext->device, VK_NULL_HANDLE, 1, &pipelineInfo, VK_NULL_HANDLE, &pipeline) == VK_SUCCESS);
         isComplete = true;
+		std::cout << "Pipeline created." << std::endl;
     }
 }
 

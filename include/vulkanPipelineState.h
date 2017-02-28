@@ -9,7 +9,7 @@ public:
 
     ~VulkanPipelineState();
 
-    void addShaderStage(std::string shaderFileName, VkShaderStageFlagBits stage, std::string entryPointName, VkSpecializationInfo * specialization = nullptr);
+    void addShaderStage(std::string shaderFileName, VkShaderStageFlagBits stage, const std::string entryPointName, VkSpecializationInfo * specialization = nullptr);
 
     void setPrimitiveState(std::vector<VkVertexInputBindingDescription>     &vertexInputBindingDescriptions,
                            std::vector<VkVertexInputAttributeDescription>   &vertexInputAttributeDescriptions,
