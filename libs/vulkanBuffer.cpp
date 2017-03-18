@@ -23,10 +23,10 @@ VulkanBuffer::VulkanBuffer(VulkanDevice * __deviceContext, VkBufferUsageFlags us
     // Get Memory Requirements
     deviceContext->vkGetBufferMemoryRequirements(deviceContext->device, bufferHandle, &memoryRequirements);
     std::cout << "Memory requirements for vertex buffer: " << std::dec << memoryRequirements.size << std::endl;
-    int32_t memoryType = deviceContext->getUsableMemoryType(memoryRequirements.memoryTypeBits, hostVisible ? VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT : VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    if ( memoryType == -1){
+    uint32_t memoryType = deviceContext->getUsableMemoryType(memoryRequirements.memoryTypeBits, hostVisible ? VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT : VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    if ( memoryType == (std::numeric_limits<uint32_t>::max)()){
         memoryType = deviceContext->getUsableMemoryType(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
-        assert (memoryType != -1);
+        assert (memoryType != (std::numeric_limits<uint32_t>::max)());
     }
     std::cout << "Memory type for vertex buffer: " << std::dec << memoryType << std::endl;
 
@@ -70,8 +70,8 @@ VulkanBuffer::VulkanBuffer(VulkanDevice * __deviceContext, VkBufferUsageFlags us
         hostToDeviceCopy.size = memoryRequirements.size;
 
         // Find copy-capable queue (should be any queue)
-        int32_t copyQueueFamily = deviceContext->getUsableDeviceQueueFamily(VK_QUEUE_TRANSFER_BIT);
-        assert(copyQueueFamily != -1);
+        uint32_t copyQueueFamily = deviceContext->getUsableDeviceQueueFamily(VK_QUEUE_TRANSFER_BIT);
+        assert(copyQueueFamily != (std::numeric_limits<uint32_t>::max)());
 
         if(VulkanBuffer::copyCommandPool == nullptr){
             VulkanBuffer::copyCommandPool.reset(deviceContext->getCommandPool(VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT, copyQueueFamily));

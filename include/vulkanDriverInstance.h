@@ -56,8 +56,8 @@ class VulkanDriverInstance;
 struct VulkanDevice{
     VulkanDevice(VulkanDriverInstance * __instance, uint32_t deviceNumber, bool debugPrint = true);
     ~VulkanDevice();
-    int32_t                             getUsableMemoryType(uint32_t memoryTypeBits, const VkMemoryPropertyFlags requiredProperties);
-    int32_t                             getUsableDeviceQueueFamily(const VkQueueFlags requiredProperties);
+    uint32_t                            getUsableMemoryType(uint32_t memoryTypeBits, const VkMemoryPropertyFlags requiredProperties);
+    uint32_t                            getUsableDeviceQueueFamily(const VkQueueFlags requiredProperties);
     VulkanCommandPool *                 getCommandPool(VkCommandPoolCreateFlags flags, uint32_t queueFamilyIndex);
     //void                                allocateAndBindMemory(VkBuffer buffer, bool hostVisible);
     void                                allocateAndBindMemory(VkImage image, bool hostVisible);

@@ -357,10 +357,10 @@ VulkanCommandPool * VulkanDevice::getCommandPool(VkCommandPoolCreateFlags flags,
     return commandPool;
 }
 
-int32_t VulkanDevice::getUsableMemoryType(uint32_t memoryTypeBits, const VkMemoryPropertyFlags requiredProperties){
-    int32_t type = -1;
+uint32_t VulkanDevice::getUsableMemoryType(uint32_t memoryTypeBits, const VkMemoryPropertyFlags requiredProperties){
+    uint32_t type = (std::numeric_limits<uint32_t>::max)();
     uint32_t memoryTypeIndex = 0;
-    while (type == -1 && memoryTypeIndex < deviceMemoryProperties.memoryTypeCount){
+    while (type == (std::numeric_limits<uint32_t>::max)() && memoryTypeIndex < deviceMemoryProperties.memoryTypeCount){
         if ((memoryTypeBits & 1 << memoryTypeIndex) != 0){
             if ((requiredProperties & deviceMemoryProperties.memoryTypes[memoryTypeIndex].propertyFlags) == requiredProperties){
                 type = memoryTypeIndex;
@@ -372,10 +372,10 @@ int32_t VulkanDevice::getUsableMemoryType(uint32_t memoryTypeBits, const VkMemor
     return type;
 }
 
-int32_t VulkanDevice::getUsableDeviceQueueFamily(const VkQueueFlags requiredProperties){
-    int32_t queueFamily = -1;
+uint32_t VulkanDevice::getUsableDeviceQueueFamily(const VkQueueFlags requiredProperties){
+    uint32_t queueFamily = (std::numeric_limits<uint32_t>::max)();
     uint32_t queueFamilyIndex = 0;
-    while(queueFamilyIndex < deviceQueueFamilyPropertyCount && queueFamily == -1){
+    while(queueFamilyIndex < deviceQueueFamilyPropertyCount && queueFamily == (std::numeric_limits<uint32_t>::max)()){
         auto queueFamilyProperty = deviceQueueProperties[queueFamilyIndex];
 
         if((requiredProperties & queueFamilyProperty.queueFlags) == requiredProperties){
@@ -421,9 +421,9 @@ void VulkanDevice::allocateAndBindMemory(VkImage image, bool hostVisible){
     vkGetImageMemoryRequirements(device, image, &memoryRequirements);
 
     std::cout << "Memory requirements for image: " << std::dec << memoryRequirements.size << std::endl;
-    int32_t memoryType = getUsableMemoryType(memoryRequirements.memoryTypeBits, 
+    uint32_t memoryType = getUsableMemoryType(memoryRequirements.memoryTypeBits, 
                                                             hostVisible ? VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT : VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    assert (memoryType != -1);
+    assert (memoryType != (std::numeric_limits<uint32_t>::max)());
     std::cout << "Memory type for image: " << std::dec << memoryType << std::endl;
 
     // Allocate Memory
