@@ -63,7 +63,7 @@ int main(){
     const uint32_t windowHeight = 512;
 
     std::vector<uint32_t> queueFamilyIndices = {0};
-    VulkanSwapchain swapchain(&instance, deviceContext, instance.physicalDevices[0], queueFamilyIndices);
+    VulkanSwapchain swapchain(&instance, deviceContext, instance.physicalDevices[0], &queueFamilyIndices);
 
 #if defined (_WIN32) || defined (_WIN64)
     swapchain.createWindow(hInstance, windowWidth, windowHeight);

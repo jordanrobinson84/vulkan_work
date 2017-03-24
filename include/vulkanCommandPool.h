@@ -3,7 +3,7 @@
 
 #include "vulkanDriverInstance.h"
 
-class VulkanDevice;
+struct VulkanDevice;
 
 class VulkanCommandPool{
 public:

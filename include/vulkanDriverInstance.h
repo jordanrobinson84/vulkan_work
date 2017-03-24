@@ -2,6 +2,10 @@
 #define __VULKAN_DRIVER_INSTANCE__
 
 #if defined (_WIN32) || defined (_WIN64)
+    #pragma warning( disable : 4710)
+    #pragma warning( disable : 4820)
+    #pragma warning( disable : 4191)
+    #pragma warning( disable : 4061)
     #include <windows.h>
     #define VK_USE_PLATFORM_WIN32_KHR
     #define VK_KHR_PLATFORM_SURFACE_EXTENSION_NAME  VK_KHR_WIN32_SURFACE_EXTENSION_NAME

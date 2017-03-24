@@ -13,7 +13,7 @@
 VulkanDevice::VulkanDevice(VulkanDriverInstance * __instance, uint32_t deviceNumber, bool debugPrint){
     instance = __instance;
     assert(instance != nullptr);
-    assert (deviceNumber >= 0 && deviceNumber < instance->numPhysicalDevices);
+    assert (deviceNumber < instance->numPhysicalDevices);
 
     // Get Properties
     instance->vkGetPhysicalDeviceProperties(instance->physicalDevices[deviceNumber], &deviceProperties);

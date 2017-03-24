@@ -1,6 +1,6 @@
 #include "vulkanSwapchain.h"
 
-VulkanSwapchain::VulkanSwapchain(VulkanDriverInstance * __instance, VulkanDevice * __deviceContext, VkPhysicalDevice __physicalDevice, std::vector<uint32_t> & supportedQueueFamilyIndices)
+VulkanSwapchain::VulkanSwapchain(VulkanDriverInstance * __instance, VulkanDevice * __deviceContext, VkPhysicalDevice __physicalDevice, std::vector<uint32_t> * supportedQueueFamilyIndices)
 : physicalDevice(__physicalDevice), queueFamilyIndices(supportedQueueFamilyIndices){
     instance            = __instance;
     deviceContext       = __deviceContext;
@@ -200,7 +200,7 @@ void VulkanSwapchain::createWindowPlatformIndependent(VkSurfaceKHR swapchainSurf
     surfaceFormatIndex  = 0; // Default surface format
     swapchainImageIndex = 0;
 
-    querySwapchain(physicalDevice);
+    querySwapchain();
     swapchainFormat = surfaceFormats[surfaceFormatIndex].format;
 
     // Get surface image count
@@ -222,8 +222,8 @@ void VulkanSwapchain::createWindowPlatformIndependent(VkSurfaceKHR swapchainSurf
     swapchainCreateInfo.imageArrayLayers        = 1;
     swapchainCreateInfo.imageUsage              = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
     swapchainCreateInfo.imageSharingMode        = VK_SHARING_MODE_EXCLUSIVE;
-    swapchainCreateInfo.queueFamilyIndexCount   = queueFamilyIndices.size();
-    swapchainCreateInfo.pQueueFamilyIndices     = &queueFamilyIndices[0];
+    swapchainCreateInfo.queueFamilyIndexCount   = queueFamilyIndices->size();
+    swapchainCreateInfo.pQueueFamilyIndices     = &queueFamilyIndices->at(0);
     swapchainCreateInfo.preTransform            = surfaceCaps.currentTransform;
     swapchainCreateInfo.compositeAlpha          = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
     swapchainCreateInfo.presentMode             = presentModes[0];
@@ -306,7 +306,7 @@ void VulkanSwapchain::present(VkQueue presentationQueue){
     assert(swapchainImageIndex != 0xFFFFFFFF);
 }
 
-void VulkanSwapchain::querySwapchain(VkPhysicalDevice physicalDevice){
+void VulkanSwapchain::querySwapchain(){
 
     // Query Swapchain image format support
     uint32_t surfaceFormatCount = 0;

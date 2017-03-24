@@ -4,10 +4,10 @@ VulkanPipelineState::VulkanPipelineState(VulkanDevice                          *
     deviceContext   = __deviceContext;
     isComplete      = false;
 
-	pipelineInfo.sType					= VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-	pipelineInfo.flags					= 0;
+    pipelineInfo.sType                  = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+    pipelineInfo.flags                  = 0;
     pipelineInfo.stageCount             = 0;
-	pipelineInfo.subpass				= VK_NULL_HANDLE;
+    pipelineInfo.subpass                = VK_NULL_HANDLE;
     pipelineInfo.pColorBlendState       = nullptr;
     pipelineInfo.pDepthStencilState     = nullptr;
     pipelineInfo.pDynamicState          = nullptr;
@@ -41,7 +41,7 @@ VulkanPipelineState::~VulkanPipelineState() {
 
     if (pipelineInfo.pStages != nullptr){
         shaderStages.clear();
-		pipelineInfo.stageCount = 0;
+        pipelineInfo.stageCount = 0;
         pipelineInfo.pStages = nullptr;
     }
 
@@ -68,9 +68,10 @@ void VulkanPipelineState::addShaderStage(std::string shaderFileName, VkShaderSta
     // Get shader code
     std::ifstream shaderStream(shaderFileName, std::ifstream::binary);
     if(shaderStream){
-		shaderStream.seekg(0, shaderStream.end);
-        int32_t codeSize = shaderStream.tellg();
-		assert(codeSize != -1);
+        shaderStream.seekg(0, shaderStream.end);
+        int32_t signedCodeSize = (int32_t)shaderStream.tellg();
+        assert(signedCodeSize != -1);
+        uint32_t codeSize = (uint32_t)signedCodeSize;
         // Seek to beginning
         shaderStream.seekg(0, shaderStream.beg);
 
@@ -97,8 +98,8 @@ void VulkanPipelineState::addShaderStage(std::string shaderFileName, VkShaderSta
         createInfo.flags                = 0;
         createInfo.stage                = stage;
         createInfo.module               = shaderModule;
-		//createInfo.pName				= entryPointName.c_str();
-		createInfo.pName				= "main";
+        //createInfo.pName              = entryPointName.c_str();
+        createInfo.pName                = "main";
         createInfo.pSpecializationInfo  = specialization;
 
         shaderStages.push_back(createInfo);
@@ -107,7 +108,7 @@ void VulkanPipelineState::addShaderStage(std::string shaderFileName, VkShaderSta
         unusedStageFlags = usedFlagTest;
     }else{
         std::cout << "Error opening shader file: " << shaderFileName << std::endl;
-		assert(shaderStream.is_open());
+        assert(shaderStream.is_open());
     }
 }
 
@@ -159,8 +160,9 @@ void VulkanPipelineState::setPrimitiveState(std::vector<VkVertexInputBindingDesc
     rasterizationInfo->depthBiasConstantFactor  = depthBiasConstantFactor;
     rasterizationInfo->depthBiasClamp           = depthBiasClamp;
     rasterizationInfo->depthBiasSlopeFactor     = depthBiasSlopeFactor;
-	rasterizationInfo->lineWidth				= lineWidth;
-	rasterizationInfo->rasterizerDiscardEnable	= VK_TRUE;
+    rasterizationInfo->lineWidth                = lineWidth;
+    rasterizationInfo->polygonMode              = polygonMode;
+    rasterizationInfo->rasterizerDiscardEnable  = VK_TRUE;
     
     if (pipelineInfo.pRasterizationState != nullptr) {
         delete pipelineInfo.pRasterizationState;
@@ -180,14 +182,14 @@ void VulkanPipelineState::setViewportState(VkExtent2D &viewportExtent,
     VkViewport * viewport = new VkViewport();
     viewport->x         = viewportOffset.first;
     viewport->y         = viewportOffset.second;
-    viewport->width     = viewportExtent.width;
-    viewport->height    = viewportExtent.height;
-    viewport->minDepth  = 0.0f;
-    viewport->maxDepth  = 1.0f;
+    viewport->width     = (float)viewportExtent.width;
+    viewport->height    = (float)viewportExtent.height;
+    viewport->minDepth  = depthRange.first;
+    viewport->maxDepth  = depthRange.second;
 
     // Scissor Rectangle
-    int32_t swapchainWidth      = viewportExtent.width;
-    int32_t swapchainHeight     = viewportExtent.width;
+    int32_t swapchainWidth      = (int32_t)viewportExtent.width;
+    int32_t swapchainHeight     = (int32_t)viewportExtent.width;
     scissorRect.offset.x        = (std::max)(scissorRect.offset.x, (std::min)(scissorRect.offset.x, swapchainWidth));
     scissorRect.offset.y        = (std::max)(scissorRect.offset.y, (std::min)(scissorRect.offset.y, swapchainHeight));
     uint32_t extentBoundsX      = viewportExtent.width - scissorRect.offset.x;
@@ -218,11 +220,11 @@ void VulkanPipelineState::setViewportState(VkExtent2D &viewportExtent,
 void VulkanPipelineState::complete() {
     if (!isComplete){
         // TODO: Option to use pipeline caching
-		pipelineInfo.pStages = &shaderStages[0];
-		assert(pipelineInfo.pStages != nullptr); // Vertex shader required
+        pipelineInfo.pStages = &shaderStages[0];
+        assert(pipelineInfo.pStages != nullptr); // Vertex shader required
         assert(deviceContext->vkCreateGraphicsPipelines(deviceContext->device, VK_NULL_HANDLE, 1, &pipelineInfo, VK_NULL_HANDLE, &pipeline) == VK_SUCCESS);
         isComplete = true;
-		std::cout << "Pipeline created." << std::endl;
+        std::cout << "Pipeline created." << std::endl;
     }
 }
 
