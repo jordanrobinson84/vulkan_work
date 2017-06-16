@@ -184,13 +184,15 @@ int main(){
         nullptr
     };
     
+    // Set up submit fences
     std::vector<VkFence> submitFences;
     submitFences.resize(3);
-    VkFenceCreateInfo submitFenceInfo;
-    submitFenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-    submitFenceInfo.pNext = nullptr;
-    submitFenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+    
     for (int i = 0; i < 3; i++) {
+        VkFenceCreateInfo submitFenceInfo;
+        submitFenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+        submitFenceInfo.pNext = nullptr;
+        submitFenceInfo.flags = 0; // Unsignaled state
         assert(deviceContext->vkCreateFence(deviceContext->device, &submitFenceInfo, nullptr, &submitFences[i]) == VK_SUCCESS);
     }
 
@@ -201,9 +203,8 @@ int main(){
     uint32_t frameCount = 0;
     VkQueue presentQueue;
     deviceContext->vkGetDeviceQueue(deviceContext->device, queueFamilyIndices[0], 0, &presentQueue);
-    char loopChar = ' ';
 
-    while(loopChar != '\r'){
+    while(true){
         int cmdBufferIndex = frameCount % 3;
         int nextCmdBufferIndex = (frameCount + 1) % 3;
 
@@ -226,13 +227,13 @@ int main(){
         // Dispatch
         /*VkQueue presentQueue;
         deviceContext->vkGetDeviceQueue(deviceContext->device, queueFamilyIndices[0], 0, &presentQueue);*/
-        const VkPipelineStageFlags stageFlags[1] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+        const VkPipelineStageFlags stageFlags[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
         VkSubmitInfo presentSubmitInfo;
         presentSubmitInfo.sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO;
         presentSubmitInfo.pNext                = nullptr;
         presentSubmitInfo.waitSemaphoreCount   = 1;
         presentSubmitInfo.pWaitSemaphores      = &swapchain.presentationSemaphore;
-        presentSubmitInfo.pWaitDstStageMask    = &stageFlags[0];
+        presentSubmitInfo.pWaitDstStageMask    = stageFlags;
         presentSubmitInfo.commandBufferCount   = 1;
         presentSubmitInfo.pCommandBuffers      = &cmdBuffer[cmdBufferIndex];
         presentSubmitInfo.signalSemaphoreCount = 1;
@@ -243,17 +244,19 @@ int main(){
         swapchain.setImageLayout(cmdBuffer[cmdBufferIndex], swapchain.getCurrentImage(), VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
         deviceContext->vkEndCommandBuffer(cmdBuffer[cmdBufferIndex]);
         assert(deviceContext->vkQueueSubmit(presentQueue, 1, &presentSubmitInfo, submitFences[cmdBufferIndex]) == VK_SUCCESS);
+        // assert(deviceContext->vkQueueSubmit(presentQueue, 1, &presentSubmitInfo, VK_NULL_HANDLE) == VK_SUCCESS);
 
         // Present
         swapchain.present(presentQueue);
         deviceContext->vkWaitForFences(deviceContext->device, 1, &submitFences[nextCmdBufferIndex], VK_TRUE, 0x1000000);
         deviceContext->vkResetFences(deviceContext->device, 1, &submitFences[nextCmdBufferIndex]);
-        renderPool->resetCommandBuffer(cmdBuffer[nextCmdBufferIndex], VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
-        frameCount++;
-        // if (frameCount < 300){
-            assert( deviceContext->vkBeginCommandBuffer(cmdBuffer[nextCmdBufferIndex], &cmdBufferBeginInfo) == VK_SUCCESS);
-        // }
-        loopChar = std::cin.get();
+        if (frameCount >= 2){
+            renderPool->resetCommandBuffer(cmdBuffer[nextCmdBufferIndex], VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
+        }
+        frameCount = (frameCount + 1) % (std::numeric_limits<uint32_t>::max)();
+        assert( deviceContext->vkBeginCommandBuffer(cmdBuffer[nextCmdBufferIndex], &cmdBufferBeginInfo) == VK_SUCCESS);
+
+        std::cout << "Frame #" << frameCount << std::endl;
     }
 
     // Wait

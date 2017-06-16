@@ -289,16 +289,15 @@ void VulkanSwapchain::present(VkQueue presentationQueue){
 
     // Present
     VkResult presentResult;
-    VkPresentInfoKHR presentInfo = {
-        VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
-        nullptr,
-        1,
-        &renderingDoneSemaphore,
-        1,
-        &swapchain,
-        &swapchainImageIndex,
-        &presentResult
-    };
+    VkPresentInfoKHR presentInfo;
+    presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+    presentInfo.pNext = nullptr;
+    presentInfo.waitSemaphoreCount = 1;
+    presentInfo.pWaitSemaphores = &renderingDoneSemaphore;
+    presentInfo.swapchainCount = 1;
+    presentInfo.pSwapchains = &swapchain;
+    presentInfo.pImageIndices = &swapchainImageIndex;
+    presentInfo.pResults = &presentResult;
 
     assert(deviceContext->vkQueuePresentKHR(presentationQueue, &presentInfo) == VK_SUCCESS);
 
