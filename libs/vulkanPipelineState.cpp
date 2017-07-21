@@ -116,7 +116,7 @@ void VulkanPipelineState::setPrimitiveState(std::vector<VkVertexInputBindingDesc
                                             std::vector<VkVertexInputAttributeDescription>  &vertexInputAttributeDescriptions,
                                             VkPrimitiveTopology                             primitiveTopology,
                                             VkPolygonMode                                   polygonMode,
-                                            VkBool32                                        primitiveRestartEnable ,
+                                            VkBool32                                        primitiveRestartEnable,
                                             float                                           lineWidth,
                                             VkCullModeFlags                                 cullMode,
                                             VkFrontFace                                     frontFaceMode,
@@ -162,13 +162,29 @@ void VulkanPipelineState::setPrimitiveState(std::vector<VkVertexInputBindingDesc
     rasterizationInfo->depthBiasSlopeFactor     = depthBiasSlopeFactor;
     rasterizationInfo->lineWidth                = lineWidth;
     rasterizationInfo->polygonMode              = polygonMode;
-    rasterizationInfo->rasterizerDiscardEnable  = VK_TRUE;
+    rasterizationInfo->rasterizerDiscardEnable  = VK_FALSE;
     
     if (pipelineInfo.pRasterizationState != nullptr) {
         delete pipelineInfo.pRasterizationState;
     }
     pipelineInfo.pRasterizationState = rasterizationInfo;
 
+    // Multisample State - TODO: Actually allow multisampling
+    VkPipelineMultisampleStateCreateInfo * multisampleInfo = new VkPipelineMultisampleStateCreateInfo();
+    multisampleInfo->sType                  = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+    multisampleInfo->pNext                  = nullptr;
+    multisampleInfo->flags                  = 0;
+    multisampleInfo->rasterizationSamples   = VK_SAMPLE_COUNT_1_BIT;
+    multisampleInfo->sampleShadingEnable    = VK_FALSE;
+    multisampleInfo->minSampleShading       = 1.0;
+    multisampleInfo->pSampleMask            = nullptr;
+    multisampleInfo->alphaToCoverageEnable  = VK_FALSE;
+    multisampleInfo->alphaToOneEnable       = VK_FALSE;
+
+    if (pipelineInfo.pMultisampleState != nullptr){
+        delete pipelineInfo.pMultisampleState;
+    }
+    pipelineInfo.pMultisampleState = multisampleInfo;
 }
 
 void VulkanPipelineState::setViewportState(VkExtent2D &viewportExtent,
@@ -220,11 +236,20 @@ void VulkanPipelineState::setViewportState(VkExtent2D &viewportExtent,
 void VulkanPipelineState::complete() {
     if (!isComplete){
         // TODO: Option to use pipeline caching
-        pipelineInfo.pStages = &shaderStages[0];
+        // TODO: Check for minimum viable pipeline
+        pipelineInfo.pStages = shaderStages.data();
         assert(pipelineInfo.pStages != nullptr); // Vertex shader required
-        assert(deviceContext->vkCreateGraphicsPipelines(deviceContext->device, VK_NULL_HANDLE, 1, &pipelineInfo, VK_NULL_HANDLE, &pipeline) == VK_SUCCESS);
+        VkResult result = deviceContext->vkCreateGraphicsPipelines(deviceContext->device, VK_NULL_HANDLE, 1, &pipelineInfo, VK_NULL_HANDLE, &pipeline);
+        switch(result){
+            case VK_ERROR_OUT_OF_HOST_MEMORY:
+                std::cout << "VulkanPipelineState - Out of host memory!" << std::endl;
+            case VK_ERROR_OUT_OF_DEVICE_MEMORY:
+                std::cout << "VulkanPipelineState - Out of device memory!" << std::endl;
+            default:
+                std::cout << "VulkanPipelineState - Pipeline created." << std::endl;
+        }
+        assert(result == VK_SUCCESS);
         isComplete = true;
-        std::cout << "Pipeline created." << std::endl;
     }
 }
 

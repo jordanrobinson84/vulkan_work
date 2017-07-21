@@ -36,24 +36,24 @@ int main(){
 
     // Set buffer data
     float vertexBufferData[18];
-    vertexBufferData[0]  = 0.2; // x[0]
-    vertexBufferData[1]  = 0.2; // y[0]
+    vertexBufferData[0]  = 0.0; // x[0]
+    vertexBufferData[1]  = -0.5; // y[0]
     vertexBufferData[2]  = 0.0; // z[0]
-    vertexBufferData[3]  = 0.2; // r[0]
-    vertexBufferData[4]  = 0.2; // g[0]
+    vertexBufferData[3]  = 1.0; // r[0]
+    vertexBufferData[4]  = 0.0; // g[0]
     vertexBufferData[5]  = 0.0; // b[0]
-    vertexBufferData[6]  = 0.2; // x[1]
-    vertexBufferData[7]  = 0.8; // y[1]
+    vertexBufferData[6]  = 0.5; // x[1]
+    vertexBufferData[7]  = 0.5; // y[1]
     vertexBufferData[8]  = 0.0; // z[1]
-    vertexBufferData[9]  = 0.2; // r[1]
-    vertexBufferData[10] = 0.8; // g[1]
+    vertexBufferData[9]  = 0.0; // r[1]
+    vertexBufferData[10] = 1.0; // g[1]
     vertexBufferData[11] = 0.0; // b[1]
-    vertexBufferData[12] = 0.8; // x[2]
+    vertexBufferData[12] = -0.5; // x[2]
     vertexBufferData[13] = 0.5; // y[2]
     vertexBufferData[14] = 0.0; // z[2]
-    vertexBufferData[15] = 0.8; // r[2]
-    vertexBufferData[16] = 0.5; // g[2]
-    vertexBufferData[17] = 0.0; // b[2]
+    vertexBufferData[15] = 0.0; // r[2]
+    vertexBufferData[16] = 0.0; // g[2]
+    vertexBufferData[17] = 1.0; // b[2]
 
     VulkanBuffer vertexBuffer(deviceContext, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, vertexBufferData, sizeof(float) * 18, false);
     const VkDeviceSize vertexOffset = 0;
@@ -115,18 +115,17 @@ int main(){
     };
 
     VkAttachmentReference colorAttachment = {0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL};
-    VkSubpassDescription subpassDescription = {
-        0, // Flags
-        VK_PIPELINE_BIND_POINT_GRAPHICS, // pipelineBindPoint
-        0, // inputAttachmentCount
-        nullptr, // pInputAttachments
-        1, // colorAttachmentCount
-        &colorAttachment, // pColorAttachments
-        nullptr, // pResolveAttachments
-        nullptr, // pDepthStencilAttachment
-        0, // preserveAttachmentCount
-        nullptr// pPreserveAttachments
-    };
+    VkSubpassDescription subpassDescription;
+    subpassDescription.flags                    = 0; // Flags
+    subpassDescription.pipelineBindPoint        = VK_PIPELINE_BIND_POINT_GRAPHICS; // pipelineBindPoint
+    subpassDescription.inputAttachmentCount     = 0; // inputAttachmentCount
+    subpassDescription.pInputAttachments        = nullptr; // pInputAttachments
+    subpassDescription.colorAttachmentCount     = 1; // colorAttachmentCount
+    subpassDescription.pColorAttachments        = &colorAttachment; // pColorAttachments
+    subpassDescription.pResolveAttachments      = nullptr; // pResolveAttachments
+    subpassDescription.pDepthStencilAttachment  = nullptr; // pDepthStencilAttachment
+    subpassDescription.preserveAttachmentCount  = 0; // preserveAttachmentCount
+    subpassDescription.pPreserveAttachments     = nullptr; // pPreserveAttachments
 
     std::vector<VkAttachmentDescription> attachments = {defaultAttachment};
     std::vector<VkSubpassDescription> subpasses ={subpassDescription};
@@ -177,12 +176,11 @@ int main(){
 	vps.addShaderStage("frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT, "main");
     vps.complete();
 
-    VkCommandBufferBeginInfo cmdBufferBeginInfo = {
-        VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-        nullptr,
-        0,
-        nullptr
-    };
+    VkCommandBufferBeginInfo cmdBufferBeginInfo;
+    cmdBufferBeginInfo.sType            = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    cmdBufferBeginInfo.pNext            = nullptr;
+    cmdBufferBeginInfo.flags            = 0;
+    cmdBufferBeginInfo.pInheritanceInfo = nullptr;
     
     // Set up submit fences
     std::vector<VkFence> submitFences;
@@ -210,15 +208,15 @@ int main(){
 
         // Begin the render pass
         VkClearValue colorClear = {0.0f, 1.0f, 0.0f, 1.0f};
-        VkRenderPassBeginInfo renderPassBegin = {
-            VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
-            nullptr,
-            rp.renderPass,
-            swapchain.getCurrentFramebuffer(),
-            {{0,0}, swapchain.extent},
-            1,
-            &colorClear
-        };
+        VkRenderPassBeginInfo renderPassBegin;
+        renderPassBegin.sType           = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+        renderPassBegin.pNext           = nullptr;
+        renderPassBegin.renderPass      = rp.renderPass;
+        renderPassBegin.framebuffer     = swapchain.getCurrentFramebuffer();
+        renderPassBegin.renderArea      = {{0,0}, swapchain.extent};
+        renderPassBegin.clearValueCount = 1;
+        renderPassBegin.pClearValues    = &colorClear;
+
         deviceContext->vkCmdBindPipeline(cmdBuffer[cmdBufferIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, vps.pipeline);
         deviceContext->vkCmdBeginRenderPass(cmdBuffer[cmdBufferIndex], &renderPassBegin, VK_SUBPASS_CONTENTS_INLINE);
         deviceContext->vkCmdBindVertexBuffers(cmdBuffer[cmdBufferIndex], 0, 1, &vertexBuffer.bufferHandle, &vertexOffset);
@@ -256,7 +254,7 @@ int main(){
         frameCount = (frameCount + 1) % (std::numeric_limits<uint32_t>::max)();
         assert( deviceContext->vkBeginCommandBuffer(cmdBuffer[nextCmdBufferIndex], &cmdBufferBeginInfo) == VK_SUCCESS);
 
-        std::cout << "Frame #" << frameCount << std::endl;
+        // std::cout << "Frame #" << frameCount << std::endl;
     }
 
     // Wait

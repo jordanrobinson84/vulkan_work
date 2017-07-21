@@ -245,16 +245,15 @@ void VulkanSwapchain::createWindowPlatformIndependent(VkSurfaceKHR swapchainSurf
         std::cout << "Swapchain Image #" << index << ": " << swapchainImages[index] << std::endl;
 
         // Image View creation
-        VkImageViewCreateInfo imageCreateInfo = {
-            VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-            nullptr,
-            0,
-            swapchainImages[index],
-            VK_IMAGE_VIEW_TYPE_2D,
-            swapchainFormat,
-            {VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY },
-            {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1}
-        };
+        VkImageViewCreateInfo imageCreateInfo;
+        imageCreateInfo.sType               = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        imageCreateInfo.pNext               = nullptr;
+        imageCreateInfo.flags               = 0;
+        imageCreateInfo.image               = swapchainImages[index];
+        imageCreateInfo.viewType            = VK_IMAGE_VIEW_TYPE_2D;
+        imageCreateInfo.format              = swapchainFormat;
+        imageCreateInfo.components          = {VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY };
+        imageCreateInfo.subresourceRange    = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
 
         assert(deviceContext->vkCreateImageView(deviceContext->device, &imageCreateInfo, nullptr, &swapchainImageViews[index]) == VK_SUCCESS);
     }
@@ -367,22 +366,22 @@ void VulkanSwapchain::querySwapchain(){
 }
 
 void VulkanSwapchain::setImageLayout(VkCommandBuffer commandBuffer, VkImage image, VkImageAspectFlags aspects, VkImageLayout oldLayout, VkImageLayout newLayout){
-    VkImageMemoryBarrier imageBarrier = {
-        VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-        nullptr,
-        0,
-        0,
-        oldLayout,
-        newLayout,
-        VK_QUEUE_FAMILY_IGNORED,
-        VK_QUEUE_FAMILY_IGNORED,
-        image
-    };
+    VkImageMemoryBarrier imageBarrier;
+    imageBarrier.sType                  = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    imageBarrier.pNext                  = nullptr;
+    imageBarrier.srcAccessMask          = 0;
+    imageBarrier.dstAccessMask          = 0;
+    imageBarrier.oldLayout              = oldLayout;
+    imageBarrier.newLayout              = newLayout;
+    imageBarrier.srcQueueFamilyIndex    = VK_QUEUE_FAMILY_IGNORED;
+    imageBarrier.dstQueueFamilyIndex    = VK_QUEUE_FAMILY_IGNORED;
+    imageBarrier.image                  = image;
 
-    imageBarrier.subresourceRange.aspectMask = aspects;
-    imageBarrier.subresourceRange.baseMipLevel = 0;
-    imageBarrier.subresourceRange.levelCount = 1;
-    imageBarrier.subresourceRange.layerCount = 1;
+    imageBarrier.subresourceRange.baseArrayLayer    = 0;
+    imageBarrier.subresourceRange.aspectMask        = aspects;
+    imageBarrier.subresourceRange.baseMipLevel      = 0;
+    imageBarrier.subresourceRange.levelCount        = 1;
+    imageBarrier.subresourceRange.layerCount        = 1;
 
     switch (oldLayout) {
         case VK_IMAGE_LAYOUT_PREINITIALIZED:
@@ -448,17 +447,16 @@ void VulkanSwapchain::setupFramebuffers(VkCommandBuffer cmdBuffer, VkRenderPass 
         setImageLayout(cmdBuffer, swapchainImages[index], VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
         // Framebuffer creation
-        VkFramebufferCreateInfo framebufferCreateInfo = {
-            VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
-            nullptr,
-            0,
-            renderPass,
-            1,
-            &(swapchainImageViews[index]),
-            extent.width,
-            extent.height,
-            1
-        };
+        VkFramebufferCreateInfo framebufferCreateInfo;
+        framebufferCreateInfo.sType             = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        framebufferCreateInfo.pNext             = nullptr;
+        framebufferCreateInfo.flags             = 0;
+        framebufferCreateInfo.renderPass        = renderPass;
+        framebufferCreateInfo.attachmentCount   = 1;
+        framebufferCreateInfo.pAttachments      = &(swapchainImageViews[index]);
+        framebufferCreateInfo.width             = extent.width;
+        framebufferCreateInfo.height            = extent.height;
+        framebufferCreateInfo.layers            = 1;
 
         assert(deviceContext->vkCreateFramebuffer(deviceContext->device, &framebufferCreateInfo, nullptr, &(swapchainFramebuffers[index])) == VK_SUCCESS);
     }
