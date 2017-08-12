@@ -21,14 +21,15 @@ VulkanBuffer::VulkanBuffer(VulkanDevice * __deviceContext, VkBufferUsageFlags us
     assert(deviceContext->vkCreateBuffer(deviceContext->device, &bufferInfo, nullptr, &bufferHandle) == VK_SUCCESS);
 
     // Get Memory Requirements
+    payloadSize = dataSize;
     deviceContext->vkGetBufferMemoryRequirements(deviceContext->device, bufferHandle, &memoryRequirements);
-    std::cout << "Memory requirements for vertex buffer: " << std::dec << memoryRequirements.size << std::endl;
+    std::cout << "Memory requirements for " << (hostVisible ? "Host " : "Device ") << "buffer: " << std::dec << memoryRequirements.size << std::endl;
     uint32_t memoryType = deviceContext->getUsableMemoryType(memoryRequirements.memoryTypeBits, hostVisible ? VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT : VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     if ( memoryType == (std::numeric_limits<uint32_t>::max)()){
         memoryType = deviceContext->getUsableMemoryType(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
         assert (memoryType != (std::numeric_limits<uint32_t>::max)());
     }
-    std::cout << "Memory type for vertex buffer: " << std::dec << memoryType << std::endl;
+    std::cout << "Memory type for  " << (hostVisible ? "Host " : "Device ") << "buffer: " << std::dec << memoryType << std::endl;
 
     // Allocate Memory
     bufferAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;

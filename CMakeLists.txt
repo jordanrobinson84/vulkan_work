@@ -9,6 +9,7 @@ message("CMake System Name: ${CMAKE_SYSTEM_NAME}")
 
 include_directories( 
     "include"
+    "include/glm"
     "$ENV{VK_SDK_PATH}/Include" )
 
 if ( WIN32 )
@@ -17,5 +18,5 @@ if ( CMAKE_SYSTEM_NAME STREQUAL Linux )
     set( XCB_LIBS xcb xcb-keysyms xcb-randr )
 endif()
 add_subdirectory( libs )
-add_subdirectory( test1 )
+add_subdirectory( demos )
 

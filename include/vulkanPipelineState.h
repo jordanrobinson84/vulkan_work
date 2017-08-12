@@ -18,7 +18,7 @@ public:
                            VkBool32                                         primitiveRestartEnable = VK_FALSE,
                            float                                            lineWidth = 1.0f,
                            VkCullModeFlags                                  cullMode = VK_CULL_MODE_BACK_BIT,
-                           VkFrontFace                                      frontFaceMode = VK_FRONT_FACE_CLOCKWISE,
+                           VkFrontFace                                      frontFaceMode = VK_FRONT_FACE_COUNTER_CLOCKWISE,
                            VkBool32                                         depthBiasEnable = VK_FALSE,
                            float                                            depthBiasConstantFactor = 0.0f,
                            float                                            depthBiasClamp = 0.0f,
@@ -29,6 +29,7 @@ public:
                           std::pair<float, float> viewportOffset = { 0.0f,0.0f },
                           std::pair<float, float> depthRange = { 0.0f, 1.0f });
 
+    void updatePipeline();
     void complete();
     bool completed();
 

@@ -35,6 +35,7 @@
 #include <vulkan/vk_icd.h>
 #include <algorithm>
 #include <vector>
+#include <array>
 #include <iostream>
 #include <cassert>
 #include <cstring>
@@ -58,20 +59,24 @@ class VulkanCommandPool;
 class VulkanDriverInstance;
 
 struct VulkanDevice{
-    VulkanDevice(VulkanDriverInstance * __instance, uint32_t deviceNumber, bool debugPrint = true);
+    VulkanDevice(VulkanDriverInstance * __instance, uint32_t __deviceNumber, bool debugPrint = true);
     ~VulkanDevice();
+    VkDescriptorPool *                  getDescriptorPool(const std::vector<VkDescriptorPoolSize>& descriptorSizes);
     uint32_t                            getUsableMemoryType(uint32_t memoryTypeBits, const VkMemoryPropertyFlags requiredProperties);
     uint32_t                            getUsableDeviceQueueFamily(const VkQueueFlags requiredProperties);
     VulkanCommandPool *                 getCommandPool(VkCommandPoolCreateFlags flags, uint32_t queueFamilyIndex);
     //void                                allocateAndBindMemory(VkBuffer buffer, bool hostVisible);
-    void                                allocateAndBindMemory(VkImage image, bool hostVisible);
+    VkDeviceMemory                      allocateAndBindMemory(VkImage image, bool hostVisible);
+    VkFormat                            getSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
 
     VkDevice                            device;
     VulkanDriverInstance *              instance;
+    std::vector<VkDescriptorPool>       descriptorPools;
     VkPhysicalDeviceFeatures            deviceFeatures;
     VkFormatProperties                  deviceFormatProperties;
     VkImageFormatProperties             deviceImageFormatProperties;
     VkPhysicalDeviceMemoryProperties    deviceMemoryProperties;
+    uint32_t                            deviceNumber;
     VkPhysicalDeviceProperties          deviceProperties;
     uint32_t                            deviceQueueFamilyPropertyCount;
     VkQueueFamilyPropertiesPtr          deviceQueueProperties;

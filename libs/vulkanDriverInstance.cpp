@@ -10,8 +10,9 @@
 #define VK_INSTANCE_FUNCTION(function) function = (PFN_##function)( vkGetInstanceProcAddr( instance, macrostr(function) )); assert( function != nullptr);
 #define VK_DEVICE_FUNCTION(function) function = (PFN_##function)( instance->vkGetDeviceProcAddr( device, #function )); assert( function != nullptr);
 
-VulkanDevice::VulkanDevice(VulkanDriverInstance * __instance, uint32_t deviceNumber, bool debugPrint){
+VulkanDevice::VulkanDevice(VulkanDriverInstance * __instance, uint32_t __deviceNumber, bool debugPrint){
     instance = __instance;
+    deviceNumber = __deviceNumber;
     assert(instance != nullptr);
     assert (deviceNumber < instance->numPhysicalDevices);
 
@@ -348,7 +349,27 @@ VulkanDevice::VulkanDevice(VulkanDriverInstance * __instance, uint32_t deviceNum
 }
 
 VulkanDevice::~VulkanDevice(){
+    // Clean up descriptor pools
+    for(auto descriptorPool : descriptorPools){
+        vkDestroyDescriptorPool(device, descriptorPool, nullptr);
+    }
     instance->vkDestroyDevice(device, nullptr);
+}
+
+VkDescriptorPool * VulkanDevice::getDescriptorPool(const std::vector<VkDescriptorPoolSize>& descriptorSizes){
+    VkDescriptorPool * pool = new VkDescriptorPool();
+
+    VkDescriptorPoolCreateInfo poolInfo;
+    poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    poolInfo.pNext = nullptr;
+    poolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+    poolInfo.maxSets = descriptorSizes.size();
+    poolInfo.poolSizeCount = descriptorSizes.size();
+    poolInfo.pPoolSizes = &descriptorSizes[0];
+
+    assert(vkCreateDescriptorPool(device, &poolInfo, nullptr, pool) == VK_SUCCESS);
+    descriptorPools.push_back(*pool);
+    return pool;
 }
 
 VulkanCommandPool * VulkanDevice::getCommandPool(VkCommandPoolCreateFlags flags, uint32_t queueFamilyIndex){
@@ -412,7 +433,7 @@ uint32_t VulkanDevice::getUsableDeviceQueueFamily(const VkQueueFlags requiredPro
 //    assert( vkBindBufferMemory(device, buffer, bufferMemory, 0) == VK_SUCCESS);
 //}
 
-void VulkanDevice::allocateAndBindMemory(VkImage image, bool hostVisible){
+VkDeviceMemory VulkanDevice::allocateAndBindMemory(VkImage image, bool hostVisible){
     VkDeviceMemory          imageMemory;
     VkMemoryAllocateInfo    allocateInfo;
     VkMemoryRequirements    memoryRequirements;
@@ -435,6 +456,45 @@ void VulkanDevice::allocateAndBindMemory(VkImage image, bool hostVisible){
 
     // Bind Memory for image
     assert( vkBindImageMemory(device, image, imageMemory, 0) == VK_SUCCESS);
+
+    return imageMemory;
+}
+
+VkFormat VulkanDevice::getSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features){
+    VkFormat format = VK_FORMAT_UNDEFINED;
+
+    std::cout << "Requested Tiling: " << (tiling == VK_IMAGE_TILING_LINEAR ? "Linear" : "Optimal") << std::endl;
+    std::cout << "Requested Features: " << std::hex << features << std::endl;
+
+    for(auto candidate : candidates){
+        // Get Format Properties
+        VkFormatProperties properties;
+        instance->vkGetPhysicalDeviceFormatProperties(instance->physicalDevices[deviceNumber], candidate, &properties);
+        VkFormatFeatureFlags featureIntersection;
+
+        std::cout << "Candidate Format: " << candidate << std::endl;
+        std::cout << "Properties: " << std::endl;
+        std::cout << "   Linear Tiling Features: " << std::hex << properties.linearTilingFeatures << std::endl;
+        std::cout << "   Optimal Tiling Features: " << std::hex << properties.optimalTilingFeatures << std::endl;
+        std::cout << "   Buffer Features: " << std::hex << properties.bufferFeatures << std::endl;
+
+
+        if(tiling == VK_IMAGE_TILING_LINEAR){
+            featureIntersection = properties.linearTilingFeatures;
+        }else if (tiling == VK_IMAGE_TILING_OPTIMAL){
+            featureIntersection = properties.optimalTilingFeatures;
+        }else{
+            throw std::runtime_error("Invalid tiling mode requested!");
+        }
+
+        featureIntersection &= features;
+        if(featureIntersection == features){
+            format = candidate;
+            break;
+        }
+    }
+
+    return format;
 }
 
 VulkanDriverInstance::VulkanDriverInstance(std::string applicationName){

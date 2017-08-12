@@ -18,6 +18,7 @@ public:
     VkDeviceMemory bufferMemory;
     VkMemoryAllocateInfo bufferAllocateInfo;
     VkMemoryRequirements memoryRequirements;
+    uint32_t payloadSize;
     static std::shared_ptr<VulkanCommandPool> copyCommandPool; 
 };
 

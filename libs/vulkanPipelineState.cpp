@@ -52,6 +52,12 @@ VulkanPipelineState::~VulkanPipelineState() {
 
         delete pipelineInfo.pViewportState;
     }
+
+    if (pipelineInfo.pDepthStencilState != nullptr){
+        delete pipelineInfo.pDepthStencilState;
+    }
+
+    deviceContext->vkDestroyPipeline(deviceContext->device, pipeline, nullptr);   
 }
 
 void VulkanPipelineState::addShaderStage(std::string shaderFileName, VkShaderStageFlagBits stage, const std::string entryPointName, VkSpecializationInfo * specialization){
@@ -231,6 +237,15 @@ void VulkanPipelineState::setViewportState(VkExtent2D &viewportExtent,
     }
 
     pipelineInfo.pViewportState = viewportInfo;
+
+    // Recreate pipeline
+    if(isComplete){
+        std::cout << "Recreating pipeline!" << std::endl;
+        assert(deviceContext->vkDeviceWaitIdle(deviceContext->device) == VK_SUCCESS);
+        deviceContext->vkDestroyPipeline(deviceContext->device, pipeline, nullptr);
+        isComplete = false;
+        complete();
+    }
 }
 
 void VulkanPipelineState::complete() {
@@ -239,6 +254,26 @@ void VulkanPipelineState::complete() {
         // TODO: Check for minimum viable pipeline
         pipelineInfo.pStages = shaderStages.data();
         assert(pipelineInfo.pStages != nullptr); // Vertex shader required
+
+        // Depth stencil state
+        VkPipelineDepthStencilStateCreateInfo * depthStencilStateInfo = new VkPipelineDepthStencilStateCreateInfo();
+        depthStencilStateInfo->sType                 = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+        depthStencilStateInfo->flags                 = 0;
+        depthStencilStateInfo->depthTestEnable       = VK_TRUE;
+        depthStencilStateInfo->depthWriteEnable      = VK_TRUE;
+        depthStencilStateInfo->depthCompareOp        = VK_COMPARE_OP_LESS;
+        depthStencilStateInfo->depthBoundsTestEnable = VK_FALSE;
+        depthStencilStateInfo->minDepthBounds        = 0.0f;
+        depthStencilStateInfo->maxDepthBounds        = 1.0f;
+        depthStencilStateInfo->stencilTestEnable     = VK_FALSE;
+        depthStencilStateInfo->front                 = {};
+        depthStencilStateInfo->back                  = {};
+
+        if (pipelineInfo.pDepthStencilState != nullptr){
+            delete pipelineInfo.pDepthStencilState;
+        }
+        pipelineInfo.pDepthStencilState = depthStencilStateInfo;
+
         VkResult result = deviceContext->vkCreateGraphicsPipelines(deviceContext->device, VK_NULL_HANDLE, 1, &pipelineInfo, VK_NULL_HANDLE, &pipeline);
         switch(result){
             case VK_ERROR_OUT_OF_HOST_MEMORY:
