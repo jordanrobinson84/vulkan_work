@@ -5,7 +5,7 @@ Win32Window::Win32Window(const uint32_t _windowWidth,
                          VulkanDriverInstance * __instance,
                          VulkanDevice * __deviceContext,
                          VkPhysicalDevice __physicalDevice,
-                         const std::string title) : Window(_windowWidth, _windowHeight, __instance, __deviceContext, __physicalDevice, title){
+                         const std::string title, VkSampleCountFlagBits sampleCount) : Window(_windowWidth, _windowHeight, __instance, __deviceContext, __physicalDevice, title, sampleCount){
     windowInstance = GetModuleHandle(nullptr);
     // Create a console
     //AllocConsole();
@@ -76,7 +76,7 @@ Win32Window::Win32Window(const uint32_t _windowWidth,
     SetWindowLongPtr(windowHandle, GWLP_USERDATA, (LONG_PTR) this);
 
     createSurface();
-    swapchain = new VulkanSwapchain(__instance, __deviceContext, __physicalDevice, surface);
+    swapchain = new VulkanSwapchain(__instance, __deviceContext, __physicalDevice, surface, sampleCount);
 
     assert(swapchain != nullptr);
 }

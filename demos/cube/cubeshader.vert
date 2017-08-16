@@ -1,10 +1,15 @@
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
 
-layout(std140, binding = 0) uniform matrixBlock {
+layout(push_constant) uniform matrixBlock {
     mat4 mvp;
     mat4 normalMat;
 } ubo;
+
+/* layout(set = 0, location = 0) uniform matrixBlock {
+    mat4 mvp;
+    mat4 normalMat;
+} ubo; */
 
 layout(location = 0) in vec3 pos;
 layout(location = 1) in vec3 color;

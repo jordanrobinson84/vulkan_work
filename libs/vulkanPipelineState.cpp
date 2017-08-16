@@ -57,7 +57,39 @@ VulkanPipelineState::~VulkanPipelineState() {
         delete pipelineInfo.pDepthStencilState;
     }
 
+    for(auto pair : descriptorSetLayoutBindings){
+        auto mapEntry = pair.second;
+        mapEntry.clear();
+    }
+    descriptorSetLayoutBindings.clear();
+
+    for(auto layoutPair : descriptorSetLayouts){
+        deviceContext->vkDestroyDescriptorSetLayout(deviceContext->device, layoutPair.second, nullptr);
+    }
+    descriptorSetLayouts.clear();
+
+    for(auto mapPair : descriptorSets){
+        // mapPair is a pair of <VkDescriptorPool, std::vector<VkDescriptorSet>>
+        assert(deviceContext->vkFreeDescriptorSets(deviceContext->device, mapPair.first, mapPair.second.size(), &mapPair.second.at(0)) == VK_SUCCESS);
+        mapPair.second.clear();
+    }
+    descriptorSets.clear();
+
     deviceContext->vkDestroyPipeline(deviceContext->device, pipeline, nullptr);   
+}
+
+void VulkanPipelineState::addDescriptorSetLayoutBindings(uint32_t set, const std::vector<VkDescriptorSetLayoutBinding>& bindings){
+    // Get map entry
+    std::vector<VkDescriptorSetLayoutBinding>* mapEntry;
+    try{
+        mapEntry = &descriptorSetLayoutBindings.at(set);
+    }catch(std::out_of_range oor){
+        // Add new map entry
+        mapEntry = new std::vector<VkDescriptorSetLayoutBinding>();
+    }
+    std::cout << "Adding " << bindings.size() << " bindings" << std::endl;
+    mapEntry->insert(mapEntry->begin(), bindings.begin(), bindings.end());
+    descriptorSetLayoutBindings.emplace(set, *mapEntry);
 }
 
 void VulkanPipelineState::addShaderStage(std::string shaderFileName, VkShaderStageFlagBits stage, const std::string entryPointName, VkSpecializationInfo * specialization){
@@ -118,6 +150,79 @@ void VulkanPipelineState::addShaderStage(std::string shaderFileName, VkShaderSta
     }
 }
 
+std::vector<VkDescriptorSet>& VulkanPipelineState::generateDescriptorSets(VkDescriptorPool descriptorPool){
+
+    // Check Descriptor Set Layouts
+    for(auto pair : descriptorSetLayoutBindings){
+        auto mapEntry = pair.second;
+        std::map<uint32_t, VkDescriptorSetLayoutBinding> duplicateMap;
+        for(VkDescriptorSetLayoutBinding layoutBinding : mapEntry){
+            // Check if duplicate
+            std::map<uint32_t, VkDescriptorSetLayoutBinding>::iterator existingKeyIterator;
+            existingKeyIterator = duplicateMap.find(layoutBinding.binding);
+            if(existingKeyIterator != duplicateMap.end()){
+                duplicateMap.emplace(layoutBinding.binding, layoutBinding);
+                std::cout << "Descriptor Set Binding: ( Set " << pair.first << ", Binding " << layoutBinding.binding << " )" << std::endl;
+            }else{
+                std::runtime_error("Duplicate layout binding found!");
+            }
+        }
+
+        if(mapEntry.size() > 0){
+            VkDescriptorSetLayoutCreateInfo setLayoutInfo;
+            setLayoutInfo.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+            setLayoutInfo.pNext         = nullptr;
+            setLayoutInfo.flags         = 0;
+            setLayoutInfo.bindingCount  = mapEntry.size();
+            setLayoutInfo.pBindings     = &mapEntry[0];
+
+            VkDescriptorSetLayout setLayout;
+            assert(deviceContext->vkCreateDescriptorSetLayout(deviceContext->device, &setLayoutInfo, nullptr, &setLayout) == VK_SUCCESS);
+            descriptorSetLayouts.emplace(pair.first, setLayout);
+
+            // Allocate Descriptor Set
+            VkDescriptorSetAllocateInfo descriptorSetInfo;
+            descriptorSetInfo.sType                 = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+            descriptorSetInfo.pNext                 = nullptr;
+            descriptorSetInfo.descriptorPool        = descriptorPool;
+            descriptorSetInfo.descriptorSetCount    = 1;
+            descriptorSetInfo.pSetLayouts           = &setLayout;
+
+            VkDescriptorSet descriptorSet;
+            assert(deviceContext->vkAllocateDescriptorSets(deviceContext->device, &descriptorSetInfo, &descriptorSet) == VK_SUCCESS);
+            // Add map entry if it doesn't exist
+            try{
+                std::vector<VkDescriptorSet>& entry = descriptorSets.at(descriptorPool);
+            }catch(std::out_of_range oor){
+                descriptorSets.emplace(descriptorPool, std::vector<VkDescriptorSet>());
+            }
+            std::cout << "Adding Descriptor Set" << std::endl;
+            descriptorSets.at(descriptorPool).push_back(descriptorSet);
+        }
+    }
+
+    return descriptorSets.at(descriptorPool);
+}
+
+void VulkanPipelineState::setMultisampleState(VkSampleCountFlagBits sampleCount, double minSampleShading, const VkSampleMask* sampleMask, VkBool32 alphaToCoverageEnable, VkBool32 alphaToOneEnable){
+    // Multisample State
+    VkPipelineMultisampleStateCreateInfo * multisampleInfo = new VkPipelineMultisampleStateCreateInfo();
+    multisampleInfo->sType                  = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+    multisampleInfo->pNext                  = nullptr;
+    multisampleInfo->flags                  = 0;
+    multisampleInfo->rasterizationSamples   = sampleCount;
+    multisampleInfo->sampleShadingEnable    = (sampleCount != VK_SAMPLE_COUNT_1_BIT) ? VK_TRUE : VK_FALSE;
+    multisampleInfo->minSampleShading       = minSampleShading;
+    multisampleInfo->pSampleMask            = sampleMask;
+    multisampleInfo->alphaToCoverageEnable  = alphaToCoverageEnable;
+    multisampleInfo->alphaToOneEnable       = alphaToOneEnable;
+
+    if (pipelineInfo.pMultisampleState != nullptr){
+        delete pipelineInfo.pMultisampleState;
+    }
+    pipelineInfo.pMultisampleState = multisampleInfo;
+}
+
 void VulkanPipelineState::setPrimitiveState(std::vector<VkVertexInputBindingDescription>    &vertexInputBindingDescriptions,
                                             std::vector<VkVertexInputAttributeDescription>  &vertexInputAttributeDescriptions,
                                             VkPrimitiveTopology                             primitiveTopology,
@@ -174,23 +279,6 @@ void VulkanPipelineState::setPrimitiveState(std::vector<VkVertexInputBindingDesc
         delete pipelineInfo.pRasterizationState;
     }
     pipelineInfo.pRasterizationState = rasterizationInfo;
-
-    // Multisample State - TODO: Actually allow multisampling
-    VkPipelineMultisampleStateCreateInfo * multisampleInfo = new VkPipelineMultisampleStateCreateInfo();
-    multisampleInfo->sType                  = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-    multisampleInfo->pNext                  = nullptr;
-    multisampleInfo->flags                  = 0;
-    multisampleInfo->rasterizationSamples   = VK_SAMPLE_COUNT_1_BIT;
-    multisampleInfo->sampleShadingEnable    = VK_FALSE;
-    multisampleInfo->minSampleShading       = 1.0;
-    multisampleInfo->pSampleMask            = nullptr;
-    multisampleInfo->alphaToCoverageEnable  = VK_FALSE;
-    multisampleInfo->alphaToOneEnable       = VK_FALSE;
-
-    if (pipelineInfo.pMultisampleState != nullptr){
-        delete pipelineInfo.pMultisampleState;
-    }
-    pipelineInfo.pMultisampleState = multisampleInfo;
 }
 
 void VulkanPipelineState::setViewportState(VkExtent2D &viewportExtent,
@@ -254,6 +342,10 @@ void VulkanPipelineState::complete() {
         // TODO: Check for minimum viable pipeline
         pipelineInfo.pStages = shaderStages.data();
         assert(pipelineInfo.pStages != nullptr); // Vertex shader required
+
+        if(pipelineInfo.pMultisampleState == nullptr){
+            setMultisampleState(VK_SAMPLE_COUNT_1_BIT);
+        }
 
         // Depth stencil state
         VkPipelineDepthStencilStateCreateInfo * depthStencilStateInfo = new VkPipelineDepthStencilStateCreateInfo();

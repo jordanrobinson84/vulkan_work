@@ -5,7 +5,7 @@ XcbWindow::XcbWindow(const uint32_t _windowWidth,
                      VulkanDriverInstance * __instance,
                      VulkanDevice * __deviceContext,
                      VkPhysicalDevice __physicalDevice,
-                     const std::string title) : Window(_windowWidth, _windowHeight, __instance, __deviceContext, __physicalDevice, title){
+                     const std::string title, VkSampleCountFlagBits) : Window(_windowWidth, _windowHeight, __instance, __deviceContext, __physicalDevice, title, sampleCount){
 
     // Get XCB connection
     int screenNumber = 0;
@@ -60,7 +60,7 @@ XcbWindow::XcbWindow(const uint32_t _windowWidth,
         &title[0]);
 
     createSurface();
-    swapchain = new VulkanSwapchain(__instance, __deviceContext, __physicalDevice, surface);
+    swapchain = new VulkanSwapchain(__instance, __deviceContext, __physicalDevice, surface, sampleCount);
 
     assert(swapchain != nullptr);
 }

@@ -12,7 +12,7 @@ class VulkanDriverInstance;
 struct VulkanSwapchain{
 private:
 public:
-    VulkanSwapchain(VulkanDriverInstance * __instance, VulkanDevice * __deviceContext, VkPhysicalDevice __physicalDevice, VkSurfaceKHR __surface);
+    VulkanSwapchain(VulkanDriverInstance * __instance, VulkanDevice * __deviceContext, VkPhysicalDevice __physicalDevice, VkSurfaceKHR __surface, VkSampleCountFlagBits __sampleCount = VK_SAMPLE_COUNT_1_BIT);
     ~VulkanSwapchain();
     void cleanupSwapchain();
     void createRenderpass();
@@ -26,6 +26,7 @@ public:
     void setImageLayout(VkCommandBuffer cmdBuffer, VkImage image, VkImageAspectFlags aspects, VkImageLayout oldLayout, VkImageLayout newLayout);
     void setPipelineState(VulkanPipelineState *vps);
     void setupFramebuffers(VkCommandBuffer cmdBuffer);
+    void setupMultisampling(VkSampleCountFlagBits __sampleCount);
     // void setupSwapchain(VkCommandBuffer cmdBuffer, VkRenderPass renderPass);
 
     VulkanDriverInstance *              instance;
@@ -40,11 +41,21 @@ public:
     std::vector<VkSurfaceFormatKHR>     surfaceFormats;
     std::vector<VkPresentModeKHR>       presentModes;
     uint32_t                            imageCount;
+    VkSampleCountFlagBits               sampleCount;
     std::vector<VkImage>                swapchainDepthImages;
     std::vector<VkDeviceMemory>         swapchainDepthImageMemory;
     std::vector<VkImage>                swapchainImages;
     std::vector<VkImageView>            swapchainDepthImageViews;
     std::vector<VkImageView>            swapchainImageViews;
+
+    // Multisampled resources
+    std::vector<VkImage>                swapchainMultisampleImages;
+    std::vector<VkDeviceMemory>         swapchainMultisampleImageMemory;
+    std::vector<VkImageView>            swapchainMultisampleImageViews;
+    std::vector<VkImage>                swapchainMultisampleDepthImages;
+    std::vector<VkDeviceMemory>         swapchainMultisampleDepthImageMemory;
+    std::vector<VkImageView>            swapchainMultisampleDepthImageViews;
+
     std::vector<VkFramebuffer>          swapchainFramebuffers;
     std::vector<uint32_t>               queueFamilyIndices;
     VkSurfaceCapabilitiesKHR            surfaceCaps;

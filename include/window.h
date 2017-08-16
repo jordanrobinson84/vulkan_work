@@ -12,7 +12,7 @@ public:
            VulkanDriverInstance * __instance,
            VulkanDevice * __deviceContext,
            VkPhysicalDevice __physicalDevice,
-           const std::string title){
+           const std::string title, VkSampleCountFlagBits sampleCount = VK_SAMPLE_COUNT_1_BIT){
         instance = __instance;
         windowWidth = _windowWidth;
         windowHeight = _windowHeight;

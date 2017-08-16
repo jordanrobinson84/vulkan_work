@@ -20,6 +20,11 @@ struct uniformLayoutStruct{
     glm::mat4 Normal;
 };
 
+#define ROTATION_RATE 0.5
+#define VERTICAL_FOV 0.25
+#define MILLISECONDS_TO_SECONDS 1000
+#define FRAME_RATE_UPDATE_INTERVAL 5
+
 #if defined (_WIN32) || defined (_WIN64)
 #include "win32Window.h"
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
@@ -56,192 +61,105 @@ int main(){
     glm::mat4 Model = glm::scale(glm::mat4(), glm::vec3(0.5f));
 
     // Set buffer data
-    uint32_t numVertices = 36;
+    uint32_t numVertices = 24;
     uint32_t numElements = numVertices * 3;
-    glm::vec3 cubeBufferData[108];
+    uint32_t numIndices = 36;
+    glm::vec3 cubeBufferData[72];
+    uint16_t cubeIndexBufferData[36] = {0, 1, 2, 2, 1, 3, 4, 5, 6, 6, 5, 7, 8, 9, 10, 10, 9, 11, 12, 13, 14, 14, 13, 15, 16, 17, 18, 18, 17, 19, 20, 21, 22, 22, 21, 23};
     // Red
-    cubeBufferData[0] = glm::vec3(-1.0f, -1.0f, 1.0f);
+    cubeBufferData[0] = glm::vec3(-1.0f, -1.0f, 1.0f); // [0]
     cubeBufferData[1] = glm::vec3(1.0f, 0.0f, 0.0f);
     cubeBufferData[2] = glm::vec3(0.0f, 0.0f, -1.0f);
-    cubeBufferData[3] = glm::vec3(-1.0f, 1.0f, 1.0f);
+    cubeBufferData[3] = glm::vec3(-1.0f, 1.0f, 1.0f); // [1]
     cubeBufferData[4] = glm::vec3(1.0f, 0.0f, 0.0f);
     cubeBufferData[5] = glm::vec3(0.0f, 0.0f, -1.0f);
-    cubeBufferData[6] = glm::vec3(1.0f, -1.0f, 1.0f);
+    cubeBufferData[6] = glm::vec3(1.0f, -1.0f, 1.0f); // [2]
     cubeBufferData[7] = glm::vec3(1.0f, 0.0f, 0.0f);
     cubeBufferData[8] = glm::vec3(0.0f, 0.0f, -1.0f);
-    cubeBufferData[9] = glm::vec3(1.0f, -1.0f, 1.0f);
+    cubeBufferData[9] = glm::vec3(1.0f, 1.0f, 1.0f); // [3]
     cubeBufferData[10] = glm::vec3(1.0f, 0.0f, 0.0f);
     cubeBufferData[11] = glm::vec3(0.0f, 0.0f, -1.0f);
-    cubeBufferData[12] = glm::vec3(-1.0f, 1.0f, 1.0f);
-    cubeBufferData[13] = glm::vec3(1.0f, 0.0f, 0.0f);
-    cubeBufferData[14] = glm::vec3(0.0f, 0.0f, -1.0f);
-    cubeBufferData[15] = glm::vec3(1.0f, 1.0f, 1.0f);
-    cubeBufferData[16] = glm::vec3(1.0f, 0.0f, 0.0f);
-    cubeBufferData[17] = glm::vec3(0.0f, 0.0f, -1.0f);
 
     // Green
-    cubeBufferData[18] = glm::vec3(-1.0f, -1.0f, -1.0f);
+    cubeBufferData[12] = glm::vec3(-1.0f, -1.0f, -1.0f); // [4]
+    cubeBufferData[13] = glm::vec3(0.0f, 1.0f, 0.0f);
+    cubeBufferData[14] = glm::vec3(0.0f, 0.0f, 1.0f);
+    cubeBufferData[15] = glm::vec3(1.0f, -1.0f, -1.0f); // [5]
+    cubeBufferData[16] = glm::vec3(0.0f, 1.0f, 0.0f);
+    cubeBufferData[17] = glm::vec3(0.0f, 0.0f, 1.0f);
+    cubeBufferData[18] = glm::vec3(-1.0f, 1.0f, -1.0f); // [6]
     cubeBufferData[19] = glm::vec3(0.0f, 1.0f, 0.0f);
     cubeBufferData[20] = glm::vec3(0.0f, 0.0f, 1.0f);
-    cubeBufferData[21] = glm::vec3(1.0f, -1.0f, -1.0f);
+    cubeBufferData[21] = glm::vec3(1.0f, 1.0f, -1.0f); // [7]
     cubeBufferData[22] = glm::vec3(0.0f, 1.0f, 0.0f);
     cubeBufferData[23] = glm::vec3(0.0f, 0.0f, 1.0f);
-    cubeBufferData[24] = glm::vec3(-1.0f, 1.0f, -1.0f);
-    cubeBufferData[25] = glm::vec3(0.0f, 1.0f, 0.0f);
-    cubeBufferData[26] = glm::vec3(0.0f, 0.0f, 1.0f);
-    cubeBufferData[27] = glm::vec3(-1.0f, 1.0f, -1.0f);
-    cubeBufferData[28] = glm::vec3(0.0f, 1.0f, 0.0f);
-    cubeBufferData[29] = glm::vec3(0.0f, 0.0f, 1.0f);
-    cubeBufferData[30] = glm::vec3(1.0f, -1.0f, -1.0f);
-    cubeBufferData[31] = glm::vec3(0.0f, 1.0f, 0.0f);
-    cubeBufferData[32] = glm::vec3(0.0f, 0.0f, 1.0f);
-    cubeBufferData[33] = glm::vec3(1.0f, 1.0f, -1.0f);
-    cubeBufferData[34] = glm::vec3(0.0f, 1.0f, 0.0f);
-    cubeBufferData[35] = glm::vec3(0.0f, 0.0f, 1.0f);
 
     // Blue
-    cubeBufferData[36] = glm::vec3(-1.0f, 1.0f, 1.0f);
-    cubeBufferData[37] = glm::vec3(0.0f, 0.0f, 1.0f);
-    cubeBufferData[38] = glm::vec3(1.0f, 0.0f, 0.0f);
-    cubeBufferData[39] = glm::vec3(-1.0f, -1.0f, 1.0f);
-    cubeBufferData[40] = glm::vec3(0.0f, 0.0f, 1.0f);
-    cubeBufferData[41] = glm::vec3(1.0f, 0.0f, 0.0f);
-    cubeBufferData[42] = glm::vec3(-1.0f, 1.0f, -1.0f);
-    cubeBufferData[43] = glm::vec3(0.0f, 0.0f, 1.0f);
-    cubeBufferData[44] = glm::vec3(1.0f, 0.0f, 0.0f);
-    cubeBufferData[45] = glm::vec3(-1.0f, 1.0f, -1.0f);
-    cubeBufferData[46] = glm::vec3(0.0f, 0.0f, 1.0f);
-    cubeBufferData[47] = glm::vec3(1.0f, 0.0f, 0.0f);
-    cubeBufferData[48] = glm::vec3(-1.0f, -1.0f, 1.0f);
-    cubeBufferData[49] = glm::vec3(0.0f, 0.0f, 1.0f);
-    cubeBufferData[50] = glm::vec3(1.0f, 0.0f, 0.0f);
-    cubeBufferData[51] = glm::vec3(-1.0f, -1.0f, -1.0f);
-    cubeBufferData[52] = glm::vec3(0.0f, 0.0f, 1.0f);
-    cubeBufferData[53] = glm::vec3(1.0f, 0.0f, 0.0f);
+    cubeBufferData[24] = glm::vec3(-1.0f, 1.0f, 1.0f); // [8]
+    cubeBufferData[25] = glm::vec3(0.0f, 0.0f, 1.0f);
+    cubeBufferData[26] = glm::vec3(1.0f, 0.0f, 0.0f);
+    cubeBufferData[27] = glm::vec3(-1.0f, -1.0f, 1.0f); // [9]
+    cubeBufferData[28] = glm::vec3(0.0f, 0.0f, 1.0f);
+    cubeBufferData[29] = glm::vec3(1.0f, 0.0f, 0.0f);
+    cubeBufferData[30] = glm::vec3(-1.0f, 1.0f, -1.0f); // [10]
+    cubeBufferData[31] = glm::vec3(0.0f, 0.0f, 1.0f);
+    cubeBufferData[32] = glm::vec3(1.0f, 0.0f, 0.0f);
+    cubeBufferData[33] = glm::vec3(-1.0f, -1.0f, -1.0f); // [11]
+    cubeBufferData[34] = glm::vec3(0.0f, 0.0f, 1.0f);
+    cubeBufferData[35] = glm::vec3(1.0f, 0.0f, 0.0f);
 
     // Yellow
-    cubeBufferData[54] = glm::vec3(1.0f, 1.0f, 1.0f);
-    cubeBufferData[55] = glm::vec3(1.0f, 1.0f, 0.0f);
-    cubeBufferData[56] = glm::vec3(-1.0f, 1.0f, 0.0f);
-    cubeBufferData[57] = glm::vec3(1.0f, 1.0f, -1.0f);
-    cubeBufferData[58] = glm::vec3(1.0f, 1.0f, 0.0f);
-    cubeBufferData[59] = glm::vec3(-1.0f, 1.0f, 0.0f);
-    cubeBufferData[60] = glm::vec3(1.0f, -1.0f, 1.0f);
-    cubeBufferData[61] = glm::vec3(1.0f, 1.0f, 0.0f);
-    cubeBufferData[62] = glm::vec3(-1.0f, 1.0f, 0.0f);
-    cubeBufferData[63] = glm::vec3(1.0f, -1.0f, 1.0f);
-    cubeBufferData[64] = glm::vec3(1.0f, 1.0f, 0.0f);
-    cubeBufferData[65] = glm::vec3(-1.0f, 1.0f, 0.0f);
-    cubeBufferData[66] = glm::vec3(1.0f, 1.0f, -1.0f);
-    cubeBufferData[67] = glm::vec3(1.0f, 1.0f, 0.0f);
-    cubeBufferData[68] = glm::vec3(-1.0f, 1.0f, 0.0f);
-    cubeBufferData[69] = glm::vec3(1.0f, -1.0f, -1.0f);
-    cubeBufferData[70] = glm::vec3(1.0f, 1.0f, 0.0f);
-    cubeBufferData[71] = glm::vec3(-1.0f, 1.0f, 0.0f);
+    cubeBufferData[36] = glm::vec3(1.0f, 1.0f, 1.0f); // [12]
+    cubeBufferData[37] = glm::vec3(1.0f, 1.0f, 0.0f);
+    cubeBufferData[38] = glm::vec3(-1.0f, 1.0f, 0.0f);
+    cubeBufferData[39] = glm::vec3(1.0f, 1.0f, -1.0f); // [13]
+    cubeBufferData[40] = glm::vec3(1.0f, 1.0f, 0.0f);
+    cubeBufferData[41] = glm::vec3(-1.0f, 1.0f, 0.0f);
+    cubeBufferData[42] = glm::vec3(1.0f, -1.0f, 1.0f); // [14]
+    cubeBufferData[43] = glm::vec3(1.0f, 1.0f, 0.0f);
+    cubeBufferData[44] = glm::vec3(-1.0f, 1.0f, 0.0f);
+    cubeBufferData[45] = glm::vec3(1.0f, -1.0f, -1.0f); // [15]
+    cubeBufferData[46] = glm::vec3(1.0f, 1.0f, 0.0f);
+    cubeBufferData[47] = glm::vec3(-1.0f, 1.0f, 0.0f);
 
     // Teal
-    cubeBufferData[72] = glm::vec3(1.0f, 1.0f, 1.0f);
-    cubeBufferData[73] = glm::vec3(0.0f, 1.0f, 1.0f);
-    cubeBufferData[74] = glm::vec3(0.0f, -1.0f, 0.0f);
-    cubeBufferData[75] = glm::vec3(-1.0f, 1.0f, 1.0f);
-    cubeBufferData[76] = glm::vec3(0.0f, 1.0f, 1.0f);
-    cubeBufferData[77] = glm::vec3(0.0f, -1.0f, 0.0f);
-    cubeBufferData[78] = glm::vec3(1.0f, 1.0f, -1.0f);
-    cubeBufferData[79] = glm::vec3(0.0f, 1.0f, 1.0f);
-    cubeBufferData[80] = glm::vec3(0.0f, -1.0f, 0.0f);
-    cubeBufferData[81] = glm::vec3(1.0f, 1.0f, -1.0f);
-    cubeBufferData[82] = glm::vec3(0.0f, 1.0f, 1.0f);
-    cubeBufferData[83] = glm::vec3(0.0f, -1.0f, 0.0f);
-    cubeBufferData[84] = glm::vec3(-1.0f, 1.0f, 1.0f);
-    cubeBufferData[85] = glm::vec3(0.0f, 1.0f, 1.0f);
-    cubeBufferData[86] = glm::vec3(0.0f, -1.0f, 0.0f);
-    cubeBufferData[87] = glm::vec3(-1.0f, 1.0f, -1.0f);
-    cubeBufferData[88] = glm::vec3(0.0f, 1.0f, 1.0f);
-    cubeBufferData[89] = glm::vec3(0.0f, -1.0f, 0.0f);
+    cubeBufferData[48] = glm::vec3(1.0f, 1.0f, 1.0f); // [16]
+    cubeBufferData[49] = glm::vec3(0.0f, 1.0f, 1.0f);
+    cubeBufferData[50] = glm::vec3(0.0f, -1.0f, 0.0f);
+    cubeBufferData[51] = glm::vec3(-1.0f, 1.0f, 1.0f); // [17]
+    cubeBufferData[52] = glm::vec3(0.0f, 1.0f, 1.0f);
+    cubeBufferData[53] = glm::vec3(0.0f, -1.0f, 0.0f);
+    cubeBufferData[54] = glm::vec3(1.0f, 1.0f, -1.0f); // [18]
+    cubeBufferData[55] = glm::vec3(0.0f, 1.0f, 1.0f);
+    cubeBufferData[56] = glm::vec3(0.0f, -1.0f, 0.0f);
+    cubeBufferData[57] = glm::vec3(-1.0f, 1.0f, -1.0f); // [19]
+    cubeBufferData[58] = glm::vec3(0.0f, 1.0f, 1.0f);
+    cubeBufferData[59] = glm::vec3(0.0f, -1.0f, 0.0f);
 
     // Magenta
-    cubeBufferData[90] = glm::vec3(1.0f, -1.0f, -1.0f);
-    cubeBufferData[91] = glm::vec3(1.0f, 0.0f, 1.0f);
-    cubeBufferData[92] = glm::vec3(0.0f, 1.0f, 0.0f);
-    cubeBufferData[93] = glm::vec3(-1.0f, -1.0f, 1.0f);
-    cubeBufferData[94] = glm::vec3(1.0f, 0.0f, 1.0f);
-    cubeBufferData[95] = glm::vec3(0.0f, 1.0f, 0.0f);
-    cubeBufferData[96] = glm::vec3(1.0f, -1.0f, 1.0f);
-    cubeBufferData[97] = glm::vec3(1.0f, 0.0f, 1.0f);
-    cubeBufferData[98] = glm::vec3(0.0f, 1.0f, 0.0f);
-    cubeBufferData[99] = glm::vec3(-1.0f, -1.0f, 1.0f);
-    cubeBufferData[100] = glm::vec3(1.0f, 0.0f, 1.0f);
-    cubeBufferData[101] = glm::vec3(0.0f, 1.0f, 0.0f);
-    cubeBufferData[102] = glm::vec3(1.0f, -1.0f, -1.0f);
-    cubeBufferData[103] = glm::vec3(1.0f, 0.0f, 1.0f);
-    cubeBufferData[104] = glm::vec3(0.0f, 1.0f, 0.0f);
-    cubeBufferData[105] = glm::vec3(-1.0f, -1.0f, -1.0f);
-    cubeBufferData[106] = glm::vec3(1.0f, 0.0f, 1.0f);
-    cubeBufferData[107] = glm::vec3(0.0f, 1.0f, 0.0f);
+    cubeBufferData[60] = glm::vec3(1.0f, -1.0f, 1.0f); // [22]
+    cubeBufferData[61] = glm::vec3(1.0f, 0.0f, 1.0f);
+    cubeBufferData[62] = glm::vec3(0.0f, 1.0f, 0.0f);
+    cubeBufferData[63] = glm::vec3(1.0f, -1.0f, -1.0f); // [20]
+    cubeBufferData[64] = glm::vec3(1.0f, 0.0f, 1.0f);
+    cubeBufferData[65] = glm::vec3(0.0f, 1.0f, 0.0f);
+    cubeBufferData[66] = glm::vec3(-1.0f, -1.0f, 1.0f); // [21]
+    cubeBufferData[67] = glm::vec3(1.0f, 0.0f, 1.0f);
+    cubeBufferData[68] = glm::vec3(0.0f, 1.0f, 0.0f);
+    cubeBufferData[69] = glm::vec3(-1.0f, -1.0f, -1.0f); // [23]
+    cubeBufferData[70] = glm::vec3(1.0f, 0.0f, 1.0f);
+    cubeBufferData[71] = glm::vec3(0.0f, 1.0f, 0.0f);
 
     uniformLayoutStruct uniformStruct;
     uniformStruct.MVP = Projection * View * Model;
     uniformStruct.Normal = glm::transpose(glm::inverse(View * Model));
     VulkanBuffer matrixBuffer(deviceContext, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, &uniformStruct, sizeof(uniformStruct), true);
 
-    // Create Descriptor Set Layout
-    VkDescriptorSetLayoutBinding uboLayoutBinding;
-    uboLayoutBinding.binding            = 0;
-    uboLayoutBinding.descriptorType     = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    uboLayoutBinding.descriptorCount    = 1;
-    uboLayoutBinding.stageFlags         = VK_SHADER_STAGE_VERTEX_BIT;
-    uboLayoutBinding.pImmutableSamplers = nullptr;
-
-    VkDescriptorSetLayout uboLayout;
-    VkDescriptorSetLayoutCreateInfo uboLayoutInfo;
-    uboLayoutInfo.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    uboLayoutInfo.pNext         = nullptr;
-    uboLayoutInfo.flags         = 0;
-    uboLayoutInfo.bindingCount  = 1;
-    uboLayoutInfo.pBindings     = &uboLayoutBinding;
-
-    // // Create Descriptor Pool
-    VkDescriptorPoolSize uniformPoolSize;
-    uniformPoolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    uniformPoolSize.descriptorCount = 1;
-    std::vector<VkDescriptorPoolSize> poolSizes = {uniformPoolSize};
-
-    VkDescriptorPool *  uniformPool  = deviceContext->getDescriptorPool(poolSizes);
-
-    assert(deviceContext->vkCreateDescriptorSetLayout(deviceContext->device, &uboLayoutInfo, nullptr, &uboLayout) == VK_SUCCESS);
-
-    // Allocate Descriptor Set
-    VkDescriptorSetAllocateInfo uniformSetInfo;
-    uniformSetInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    uniformSetInfo.pNext = nullptr;
-    uniformSetInfo.descriptorPool = *uniformPool;
-    uniformSetInfo.descriptorSetCount = 1;
-    uniformSetInfo.pSetLayouts = &uboLayout;
-
-    VkDescriptorSet uniformSet;
-    assert(deviceContext->vkAllocateDescriptorSets(deviceContext->device, &uniformSetInfo, &uniformSet) == VK_SUCCESS);
-
-    // Associate Uniform Buffer with Descriptor Set
-    VkDescriptorBufferInfo uniformBufferInfo;
-    uniformBufferInfo.buffer = matrixBuffer.bufferHandle;
-    uniformBufferInfo.offset = 0;
-    uniformBufferInfo.range = matrixBuffer.payloadSize;
-
-    VkWriteDescriptorSet uniformWriteSet;
-    uniformWriteSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    uniformWriteSet.pNext = nullptr;
-    uniformWriteSet.dstSet = uniformSet;
-    uniformWriteSet.dstBinding = 0;
-    uniformWriteSet.dstArrayElement = 0;
-    uniformWriteSet.descriptorCount = 1;
-    uniformWriteSet.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    uniformWriteSet.pImageInfo = nullptr;
-    uniformWriteSet.pBufferInfo = &uniformBufferInfo;
-    uniformWriteSet.pTexelBufferView = nullptr;
-
-    deviceContext->vkUpdateDescriptorSets(deviceContext->device, 1, &uniformWriteSet, 0, nullptr);
+    // Create pipeline state
+    VulkanPipelineState vps(deviceContext);
 
     VulkanBuffer vertexBuffer(deviceContext, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, cubeBufferData, sizeof(glm::vec3) * numElements, false);
+    VulkanBuffer indexBuffer(deviceContext, VK_BUFFER_USAGE_INDEX_BUFFER_BIT, cubeIndexBufferData, sizeof(uint16_t) * numIndices, false);
     const VkDeviceSize vertexOffset = 0;
     
     // Window geometry
@@ -251,12 +169,10 @@ int main(){
     Window * window = nullptr;
 
 #if defined (_WIN32) || defined (_WIN64)
-    window = new Win32Window(windowWidth, windowHeight, &instance, deviceContext, instance.physicalDevices[0], "Win32 Vulkan - Test1");
+    window = new Win32Window(windowWidth, windowHeight, &instance, deviceContext, instance.physicalDevices[0], "Win32 Vulkan - Cube", VK_SAMPLE_COUNT_4_BIT);
 #elif defined (__linux__)
-    window = new XcbWindow(windowWidth, windowHeight, &instance, deviceContext, instance.physicalDevices[0], "Linux XCB Vulkan - Test1");
+    window = new XcbWindow(windowWidth, windowHeight, &instance, deviceContext, instance.physicalDevices[0], "Linux XCB Vulkan - Cube", VK_SAMPLE_COUNT_4_BIT);
 #endif
-
-    VulkanPipelineState vps(deviceContext);
 
     VkVertexInputBindingDescription vertexBindingDescription;
     vertexBindingDescription.binding    = 0;
@@ -288,6 +204,7 @@ int main(){
     VkRect2D scissorRect = { { 0, 0 }, window->swapchain->extent };
     vps.setViewportState(window->swapchain->extent, scissorRect);
     window->swapchain->setPipelineState(&vps);
+    // window->swapchain->setupMultisampling(VK_SAMPLE_COUNT_4_BIT);
 
     // Do rendering
     VulkanCommandPool * renderPool      = deviceContext->getCommandPool(VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT, window->swapchain->queueFamilyIndices[0]);
@@ -296,15 +213,20 @@ int main(){
     window->swapchain->createRenderpass();
 
     // Pipeline layout setup
+    VkPushConstantRange uboRange;
+    uboRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    uboRange.offset     = 0;
+    uboRange.size       = sizeof(uniformStruct);
+
     VkPipelineLayout layout;
     VkPipelineLayoutCreateInfo layoutInfo;
     layoutInfo.sType                    = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     layoutInfo.pNext                    = nullptr;
     layoutInfo.flags                    = 0;
-    layoutInfo.setLayoutCount           = 1;
-    layoutInfo.pSetLayouts              = &uboLayout;
-    layoutInfo.pushConstantRangeCount   = 0;
-    layoutInfo.pPushConstantRanges      = nullptr;
+    layoutInfo.setLayoutCount           = 0;
+    layoutInfo.pSetLayouts              = nullptr;
+    layoutInfo.pushConstantRangeCount   = 1;
+    layoutInfo.pPushConstantRanges      = &uboRange;
     assert(deviceContext->vkCreatePipelineLayout(deviceContext->device, &layoutInfo, nullptr, &layout) == VK_SUCCESS);
     vps.pipelineInfo.layout = layout;
 
@@ -331,8 +253,6 @@ int main(){
     }
 
     assert( deviceContext->vkBeginCommandBuffer(cmdBuffer[0], &cmdBufferBeginInfo) == VK_SUCCESS);
-    // window->swapchain->setupFramebuffers(cmdBuffer[0]);
-    // window->swapchain->setImageLayout(cmdBuffer[0], window->swapchain->getCurrentImage(), VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL); 
 
     uint32_t frameCount = 0;
     VkQueue presentQueue;
@@ -343,6 +263,8 @@ int main(){
     std::chrono::time_point<std::chrono::high_resolution_clock> start, end;
     start = std::chrono::high_resolution_clock::now();
     end = start;
+    double accumulatedTime = 0.0;
+    uint32_t frameCountStart = 0;
 
     while(true){
         int cmdBufferIndex = frameCount % window->swapchain->imageCount;
@@ -366,30 +288,45 @@ int main(){
             
             std::cout << "New Aspect Ratio: " << aspect << std::endl;
             if(std::isfinite(aspect)){
-                Projection = glm::perspective(glm::pi<float>() * 0.25f, aspect, 0.1f, 100.f);
+                Projection = glm::perspective(glm::pi<float>() * ((float)VERTICAL_FOV), aspect, 0.1f, 100.f);
             }
         }
 
-        // Update uniform buffer if duration is greater than zero
+        // Update uniforms if duration is greater than zero
         if(start != end){
-            std::chrono::duration<double, std::ratio<1, 1000>> delta_time = end - start;
+            std::chrono::duration<double, std::ratio<1, MILLISECONDS_TO_SECONDS>> delta_time = end - start;
             double delta = delta_time.count();
-            float angle = (float)(glm::pi<double>() * 0.5 * (delta / 1000.0));
+            accumulatedTime += delta;
+            if(accumulatedTime > (FRAME_RATE_UPDATE_INTERVAL * MILLISECONDS_TO_SECONDS) ){
+                uint32_t deltaFrames = 0;
+                if(frameCount < frameCountStart){
+                    deltaFrames = ((std::numeric_limits<uint32_t>::max)() - frameCountStart) + frameCount;
+                }else{
+                    deltaFrames = frameCount - frameCountStart;
+                }
+                frameCountStart = frameCount;
+                double framesPerSecond = (deltaFrames / accumulatedTime) * MILLISECONDS_TO_SECONDS;
+                accumulatedTime = 0.0;
+                std::cout << "Frames Per Second: " << framesPerSecond << std::endl;
+            }
+            float angle = (float)(glm::pi<double>() * ((double)ROTATION_RATE) * (delta / MILLISECONDS_TO_SECONDS));
 
             Model = glm::rotate(Model, angle, glm::vec3(0.0f, 0.4f, 1.0f));
             uniformStruct.MVP = Projection * View * Model;
             uniformStruct.Normal = glm::transpose(glm::inverse(View * Model));
-            void * mapData = nullptr;
-            assert( deviceContext->vkMapMemory(deviceContext->device, matrixBuffer.bufferMemory, 0, matrixBuffer.memoryRequirements.size, 0, &mapData) == VK_SUCCESS);
-            memcpy(mapData, &uniformStruct, sizeof(uniformStruct));
-            deviceContext->vkUnmapMemory(deviceContext->device, matrixBuffer.bufferMemory);
+            // matrixBuffer.copyHostData(&uniformStruct, 0, sizeof(uniformStruct));
             start = end;
         }
 
         // Begin the render pass
-        std::array<VkClearValue, 2> clearValues;
+        // std::array<VkClearValue, 2> clearValues;
+        // clearValues[0].color = {0.0f, 0.0f, 0.0f, 1.0f};
+        // clearValues[1].depthStencil = {1.0f, 0};
+        std::array<VkClearValue, 4> clearValues;
         clearValues[0].color = {0.0f, 0.0f, 0.0f, 1.0f};
         clearValues[1].depthStencil = {1.0f, 0};
+        clearValues[2].color = {0.0f, 0.0f, 0.0f, 1.0f};
+        clearValues[3].depthStencil = {1.0f, 0};
 
         VkRenderPassBeginInfo renderPassBegin;
         renderPassBegin.sType           = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -401,15 +338,15 @@ int main(){
         renderPassBegin.pClearValues    = &clearValues[0];
 
         deviceContext->vkQueueWaitIdle(presentQueue);
-        deviceContext->vkCmdBindDescriptorSets(cmdBuffer[cmdBufferIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, layout, 0, 1, &uniformSet, 0, nullptr);
+        // Update Push Constants
+        deviceContext->vkCmdPushConstants(cmdBuffer[cmdBufferIndex], layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(uniformStruct), &uniformStruct);
         deviceContext->vkCmdBindPipeline(cmdBuffer[cmdBufferIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, vps.pipeline);
         deviceContext->vkCmdBeginRenderPass(cmdBuffer[cmdBufferIndex], &renderPassBegin, VK_SUBPASS_CONTENTS_INLINE);
         deviceContext->vkCmdBindVertexBuffers(cmdBuffer[cmdBufferIndex], 0, 1, &vertexBuffer.bufferHandle, &vertexOffset);
-        deviceContext->vkCmdDraw(cmdBuffer[cmdBufferIndex], numVertices, 1, 0, 0);
+        deviceContext->vkCmdBindIndexBuffer(cmdBuffer[cmdBufferIndex], indexBuffer.bufferHandle, 0, VK_INDEX_TYPE_UINT16);
+        deviceContext->vkCmdDrawIndexed(cmdBuffer[cmdBufferIndex], numIndices, 1, 0, 0, 0);
 
         // Dispatch
-        /*VkQueue presentQueue;
-        deviceContext->vkGetDeviceQueue(deviceContext->device, queueFamilyIndices[0], 0, &presentQueue);*/
         const VkPipelineStageFlags stageFlags[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
         VkSubmitInfo presentSubmitInfo;
         presentSubmitInfo.sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -427,7 +364,6 @@ int main(){
         window->swapchain->setImageLayout(cmdBuffer[cmdBufferIndex], window->swapchain->getCurrentImage(), VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
         deviceContext->vkEndCommandBuffer(cmdBuffer[cmdBufferIndex]);
         assert(deviceContext->vkQueueSubmit(presentQueue, 1, &presentSubmitInfo, submitFences[cmdBufferIndex]) == VK_SUCCESS);
-        // assert(deviceContext->vkQueueSubmit(presentQueue, 1, &presentSubmitInfo, VK_NULL_HANDLE) == VK_SUCCESS);
 
         // Present
         try{
@@ -439,8 +375,6 @@ int main(){
         // Update timer
         end = std::chrono::high_resolution_clock::now();
 
-        // deviceContext->vkWaitForFences(deviceContext->device, 1, &submitFences[nextCmdBufferIndex], VK_TRUE, 0x1000000);
-        // deviceContext->vkResetFences(deviceContext->device, 1, &submitFences[nextCmdBufferIndex]);
         if (frameCount >= window->swapchain->imageCount-1){
             deviceContext->vkResetFences(deviceContext->device, 1, &submitFences[nextCmdBufferIndex]);
             renderPool->resetCommandBuffer(cmdBuffer[nextCmdBufferIndex], VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
@@ -460,8 +394,7 @@ int main(){
         #endif
     }
 
-    // Wait
-    // std::cin.get();
+    delete window;
     assert(deviceContext->vkDeviceWaitIdle(deviceContext->device) == VK_SUCCESS);
     renderPool->freeCommandBuffers(window->swapchain->imageCount, cmdBuffer);
     delete renderPool;

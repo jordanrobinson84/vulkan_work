@@ -3,14 +3,19 @@
 
 #include "vulkanDriverInstance.h"
 
+typedef std::map< VkDescriptorPool, std::vector< VkDescriptorSet> > DescriptorSetMap;
+typedef std::map< uint32_t, std::vector< VkDescriptorSetLayoutBinding> > DescriptorSetLayoutBindingMap;
+
 class VulkanPipelineState{
 public:
     VulkanPipelineState(VulkanDevice                          * __deviceContext);
 
     ~VulkanPipelineState();
 
+    void addDescriptorSetLayoutBindings(uint32_t set, const std::vector<VkDescriptorSetLayoutBinding>& bindings);
     void addShaderStage(std::string shaderFileName, VkShaderStageFlagBits stage, const std::string entryPointName, VkSpecializationInfo * specialization = nullptr);
-
+    std::vector<VkDescriptorSet>& generateDescriptorSets(VkDescriptorPool descriptorPool);
+    void setMultisampleState(VkSampleCountFlagBits sampleCount, double minSampleShading = 1.0, const VkSampleMask* sampleMask = nullptr, VkBool32 alphaToCoverageEnable = VK_FALSE, VkBool32 alphaToOneEnable = VK_FALSE);
     void setPrimitiveState(std::vector<VkVertexInputBindingDescription>     &vertexInputBindingDescriptions,
                            std::vector<VkVertexInputAttributeDescription>   &vertexInputAttributeDescriptions,
                            VkPrimitiveTopology                              primitiveTopology,
@@ -33,6 +38,9 @@ public:
     void complete();
     bool completed();
 
+    DescriptorSetMap                                descriptorSets;
+    DescriptorSetLayoutBindingMap                   descriptorSetLayoutBindings;
+    std::map<uint32_t, VkDescriptorSetLayout>       descriptorSetLayouts;
     VulkanDevice *                                  deviceContext;
     bool                                            isComplete;
     VkGraphicsPipelineCreateInfo                    pipelineInfo;

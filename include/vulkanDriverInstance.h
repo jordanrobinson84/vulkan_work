@@ -36,6 +36,7 @@
 #include <algorithm>
 #include <vector>
 #include <array>
+#include <map>
 #include <iostream>
 #include <cassert>
 #include <cstring>
