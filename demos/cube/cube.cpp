@@ -13,7 +13,7 @@
 #include "vulkanDriverInstance.h"
 #include "vulkanBuffer.h"
 #include "vulkanRenderPass.h"
-#include "VulkanSwapchain.h"
+#include "vulkanSwapchain.h"
 #include "vulkanPipelineState.h"
 
 struct uniformLayoutStruct{

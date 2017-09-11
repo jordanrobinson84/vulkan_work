@@ -33,7 +33,7 @@ public:
     VulkanDevice *                      deviceContext;
     VkPipelineColorBlendAttachmentState attachmentBlendState;
     VkPipelineColorBlendStateCreateInfo blendState;
-    boolean                             dirtyFramebuffers;
+    bool                                dirtyFramebuffers;
     VkPhysicalDevice                    physicalDevice;
     VkSurfaceKHR                        surface;
     VkSwapchainKHR                      swapchain;

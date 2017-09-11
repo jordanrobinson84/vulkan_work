@@ -12,8 +12,11 @@ public:
               VulkanDevice * __deviceContext,
               VkPhysicalDevice __physicalDevice,
               const std::string title, VkSampleCountFlagBits sampleCount = VK_SAMPLE_COUNT_1_BIT);
+    ~XcbWindow(){
+    	xcb_destroy_window(windowInstance, windowHandle);
+    };
 
     void createSurface();
-}
+};
 
 #endif

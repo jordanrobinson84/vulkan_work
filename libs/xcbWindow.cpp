@@ -5,12 +5,13 @@ XcbWindow::XcbWindow(const uint32_t _windowWidth,
                      VulkanDriverInstance * __instance,
                      VulkanDevice * __deviceContext,
                      VkPhysicalDevice __physicalDevice,
-                     const std::string title, VkSampleCountFlagBits) : Window(_windowWidth, _windowHeight, __instance, __deviceContext, __physicalDevice, title, sampleCount){
+                     const std::string title, VkSampleCountFlagBits sampleCount) : Window(_windowWidth, _windowHeight, __instance, __deviceContext, __physicalDevice, title, sampleCount){
 
     // Get XCB connection
     int screenNumber = 0;
     xcb_connection_t * connection = xcb_connect (nullptr, &screenNumber);
     windowInstance = connection;
+    surface = VK_NULL_HANDLE;
 
     // Get Screen 1
     const xcb_setup_t * setup               = xcb_get_setup(connection);
@@ -29,30 +30,30 @@ XcbWindow::XcbWindow(const uint32_t _windowWidth,
 
     uint32_t value_list[] = {
     screen->white_pixel,
-    XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_KEY_PRESS | XCB_EVENT_MASK_STRUCTURE_NOTIFY
+    XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_KEY_PRESS | XCB_EVENT_MASK_STRUCTURE_NOTIFY | XCB_EVENT_MASK_RESIZE_REDIRECT
     };
 
     // Create window
     windowHandle = xcb_generate_id(connection);
     xcb_create_window(connection,
         XCB_COPY_FROM_PARENT,
-        window,
+        windowHandle,
         screen->root,
         left, top,
         windowWidth, windowHeight,
         0,
         XCB_WINDOW_CLASS_INPUT_OUTPUT,
         screen->root_visual,
-        XCB_CW_BACK_PIXEL, value_list);
+        XCB_CW_EVENT_MASK | XCB_CW_BACK_PIXEL, value_list);
 
     // Map
-    xcb_map_window(connection, window);
+    xcb_map_window(connection, windowHandle);
     xcb_flush(connection);
 
     // Set title
     xcb_change_property(connection,
         XCB_PROP_MODE_REPLACE,
-        window,
+        windowHandle,
         XCB_ATOM_WM_NAME,
         XCB_ATOM_STRING,
         8,

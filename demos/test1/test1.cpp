@@ -3,7 +3,7 @@
 #include "vulkanDriverInstance.h"
 #include "vulkanBuffer.h"
 #include "vulkanRenderPass.h"
-#include "VulkanSwapchain.h"
+#include "vulkanSwapchain.h"
 #include "vulkanPipelineState.h"
 
 #if defined (_WIN32) || defined (_WIN64)

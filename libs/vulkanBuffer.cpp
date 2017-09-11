@@ -931,22 +931,35 @@ void VulkanImage::setImageLayout(VkCommandBuffer commandBuffer, VkImageLayout ne
     imageBarrier.image                  = imageHandle;
     imageBarrier.subresourceRange       = imageViewCreateInfo.subresourceRange;
 
+    VkPipelineStageFlags srcStageMask = (VkPipelineStageFlags)0;
+    VkPipelineStageFlags dstStageMask = (VkPipelineStageFlags)0;
+
     switch (layout) {
         case VK_IMAGE_LAYOUT_PREINITIALIZED:
             imageBarrier.srcAccessMask =
             VK_ACCESS_HOST_WRITE_BIT | VK_ACCESS_TRANSFER_WRITE_BIT;
+            srcStageMask = VK_PIPELINE_STAGE_HOST_BIT;
             break;
         case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
             imageBarrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+            srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
             break;
         case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
             imageBarrier.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+            srcStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
             break;
         case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
             imageBarrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+            srcStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
             break;
         case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
             imageBarrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+            srcStageMask = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT |
+                           VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT |
+                           VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT |
+                           VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT |
+                           VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT |
+                           VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
             break;
         default:
             break;
@@ -955,27 +968,44 @@ void VulkanImage::setImageLayout(VkCommandBuffer commandBuffer, VkImageLayout ne
     switch (newLayout) {
         case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
             imageBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            dstStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
             break;
         case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
             imageBarrier.srcAccessMask |= VK_ACCESS_TRANSFER_READ_BIT;
             imageBarrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+            srcStageMask |= VK_PIPELINE_STAGE_TRANSFER_BIT;
+            dstStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
             break;
         case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
             imageBarrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
             imageBarrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+            dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+            srcStageMask |= VK_PIPELINE_STAGE_TRANSFER_BIT;
             break;
         case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
             imageBarrier.dstAccessMask |=
                 VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+            dstStageMask |= (VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT);
             break;
         case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
             imageBarrier.srcAccessMask =
                 VK_ACCESS_HOST_WRITE_BIT | VK_ACCESS_TRANSFER_WRITE_BIT;
+            srcStageMask = VK_PIPELINE_STAGE_HOST_BIT;
             imageBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+            dstStageMask = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT |
+                           VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT |
+                           VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT |
+                           VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT |
+                           VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT |
+                           VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
             break;
         default:
             break;
     }
 
-    deviceContext->vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &imageBarrier);
+    srcStageMask = (srcStageMask == 0) ? VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT : srcStageMask;
+    dstStageMask = (dstStageMask == 0) ? VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT : dstStageMask;
+
+    deviceContext->vkCmdPipelineBarrier(commandBuffer, srcStageMask, dstStageMask, 0, 0, nullptr, 0, nullptr, 1, &imageBarrier);
+    layout = newLayout;
 }

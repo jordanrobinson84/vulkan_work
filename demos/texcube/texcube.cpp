@@ -17,7 +17,7 @@
 #include "vulkanDriverInstance.h"
 #include "vulkanBuffer.h"
 #include "vulkanRenderPass.h"
-#include "VulkanSwapchain.h"
+#include "vulkanSwapchain.h"
 #include "vulkanPipelineState.h"
 
 struct uniformLayoutStruct{
@@ -548,6 +548,32 @@ int main(int argc, char **argv){
             while( PeekMessage(&message, nullptr, 0, 0, PM_REMOVE)){
                 TranslateMessage(&message);
                 DispatchMessage(&message);  
+            }
+        #elif defined (__linux__)
+            xcb_generic_event_t *event;
+
+            while((event = xcb_poll_for_event(window->windowInstance))){
+                // TODO: Handle more events, resize only for now
+                switch(event->response_type & ~0x80){
+                    case XCB_RESIZE_REQUEST:
+                        {
+                            xcb_resize_request_event_t *resizeEvent = (xcb_resize_request_event_t*)event;
+                            uint32_t resizeWidth = resizeEvent->width;
+                            uint32_t resizeHeight = resizeEvent->height;
+                            std::cout << "New Width/Height: " << resizeWidth << "/" << resizeHeight << std::endl;
+                            // const uint32_t dimensions[] = {resizeEvent->width, resizeEvent->height};
+                            // xcb_configure_window(window->windowInstance,
+                            //     resizeEvent->window,
+                            //     XCB_CONFIG_WINDOW_WIDTH | XCB_CONFIG_WINDOW_HEIGHT,
+                            //     dimensions);
+                            window->swapchain->recreateSwapchain();
+                        }
+                        break;
+                    default:
+                        break;
+                }
+
+                delete event;
             }
         #endif
     }
