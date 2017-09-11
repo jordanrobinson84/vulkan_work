@@ -4,6 +4,7 @@ VulkanSwapchain::VulkanSwapchain(VulkanDriverInstance * __instance, VulkanDevice
 : physicalDevice(__physicalDevice), surface(__surface){
     instance            = __instance;
     deviceContext       = __deviceContext;
+    sampleCount         = __sampleCount;
 
     assert(deviceContext != nullptr);
     pipelineState = nullptr;
@@ -28,9 +29,6 @@ VulkanSwapchain::VulkanSwapchain(VulkanDriverInstance * __instance, VulkanDevice
         }
         queueFamilyIndex++;
     }
-
-    // Enable MSAA
-    setupMultisampling(__sampleCount);
 
     // Initialize
     initializeSwapchain(surface, VK_NULL_HANDLE);
@@ -61,6 +59,20 @@ void VulkanSwapchain::cleanupSwapchain(){
     }
     swapchainDepthImageMemory.clear();
 
+    for (auto multisampleImage : swapchainMultisampleImages){
+        if (multisampleImage != VK_NULL_HANDLE){
+            deviceContext->vkDestroyImage(deviceContext->device, multisampleImage, nullptr);
+        }
+    }
+    swapchainMultisampleImages.clear();
+
+    for (auto multisampleImageMemory : swapchainMultisampleImageMemory){
+        if (multisampleImageMemory != VK_NULL_HANDLE){
+            deviceContext->vkFreeMemory(deviceContext->device, multisampleImageMemory, nullptr);
+        }
+    }
+    swapchainMultisampleImageMemory.clear();
+
     // Destroy image views
     for (auto imageView : swapchainImageViews){
         if (imageView != VK_NULL_HANDLE){
@@ -75,6 +87,13 @@ void VulkanSwapchain::cleanupSwapchain(){
         }
     }
     swapchainDepthImageViews.clear();
+
+    for (auto multisampleImageView : swapchainMultisampleImageViews){
+        if (multisampleImageView != VK_NULL_HANDLE){
+            deviceContext->vkDestroyImageView(deviceContext->device, multisampleImageView, nullptr);
+        }
+    }
+    swapchainMultisampleImageViews.clear();
 
     // Destroy framebuffers
     for (auto framebuffer : swapchainFramebuffers){
@@ -107,7 +126,7 @@ void VulkanSwapchain::createRenderpass(){
     VkAttachmentDescription depthAttachment;
     depthAttachment.flags = VK_ATTACHMENT_DESCRIPTION_MAY_ALIAS_BIT;
     depthAttachment.format = swapchainDepthFormat;
-    depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    depthAttachment.samples = sampleCount;
     depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
     depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
@@ -130,20 +149,7 @@ void VulkanSwapchain::createRenderpass(){
         multisampleAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
         multisampleAttachment.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-        // Multisample depth attachment
-        VkAttachmentDescription multisampleDepthAttachment;
-        multisampleDepthAttachment.flags            = VK_ATTACHMENT_DESCRIPTION_MAY_ALIAS_BIT;
-        multisampleDepthAttachment.format           = swapchainDepthFormat;
-        multisampleDepthAttachment.samples          = sampleCount;
-        multisampleDepthAttachment.loadOp           = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        multisampleDepthAttachment.storeOp          = VK_ATTACHMENT_STORE_OP_STORE;
-        multisampleDepthAttachment.stencilLoadOp    = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-        multisampleDepthAttachment.stencilStoreOp   = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        multisampleDepthAttachment.initialLayout    = VK_IMAGE_LAYOUT_UNDEFINED;
-        multisampleDepthAttachment.finalLayout      = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
         attachments.push_back(multisampleAttachment);
-        attachments.push_back(multisampleDepthAttachment);
     }
 
     VkAttachmentReference colorAttachmentReference = {0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL};
@@ -151,9 +157,7 @@ void VulkanSwapchain::createRenderpass(){
     std::vector<VkAttachmentReference> attachmentReferences = {colorAttachmentReference, depthAttachmentReference};
     if(sampleCount != VK_SAMPLE_COUNT_1_BIT){
         VkAttachmentReference multisampleColorAttachmentReference = {2, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL};
-        VkAttachmentReference multisampleDepthAttachmentReference = {3, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL};
         attachmentReferences.push_back(multisampleColorAttachmentReference);
-        attachmentReferences.push_back(multisampleDepthAttachmentReference);
     }
 
     VkSubpassDescription subpassDescription;
@@ -168,7 +172,6 @@ void VulkanSwapchain::createRenderpass(){
     if(sampleCount != VK_SAMPLE_COUNT_1_BIT){
         subpassDescription.pColorAttachments        = &attachmentReferences[2]; // pColorAttachments
         subpassDescription.pResolveAttachments      = &attachmentReferences[0];
-        subpassDescription.pDepthStencilAttachment  = &attachmentReferences[3]; // pDepthStencilAttachment
     }
     subpassDescription.preserveAttachmentCount  = 0; // preserveAttachmentCount
     subpassDescription.pPreserveAttachments     = nullptr; // pPreserveAttachments
@@ -256,6 +259,13 @@ void VulkanSwapchain::initializeSwapchain(VkSurfaceKHR swapchainSurface, VkSwapc
 
     querySwapchain();
     swapchainFormat = surfaceFormats[surfaceFormatIndex].format;
+    std::vector<VkFormat> candidates = {VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT};
+    swapchainDepthFormat = deviceContext->getSupportedFormat(candidates, VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
+    assert(swapchainDepthFormat != VK_FORMAT_UNDEFINED);
+    std::cout << "Depth Format: " << swapchainDepthFormat << std::endl;
+
+    // Enable MSAA
+    setupMultisampling(sampleCount);
 
     // Get surface image count
     imageCount = surfaceCaps.minImageCount + 1;
@@ -282,7 +292,7 @@ void VulkanSwapchain::initializeSwapchain(VkSurfaceKHR swapchainSurface, VkSwapc
     swapchainCreateInfo.imageColorSpace         = surfaceFormats[surfaceFormatIndex].colorSpace;
     swapchainCreateInfo.imageExtent             = extent;
     swapchainCreateInfo.imageArrayLayers        = 1;
-    swapchainCreateInfo.imageUsage              = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    swapchainCreateInfo.imageUsage              = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
     swapchainCreateInfo.imageSharingMode        = imageSharingMode;
     swapchainCreateInfo.queueFamilyIndexCount   = queueFamilyIndices.size();
     swapchainCreateInfo.pQueueFamilyIndices     = &queueFamilyIndices.at(0);
@@ -302,10 +312,10 @@ void VulkanSwapchain::initializeSwapchain(VkSurfaceKHR swapchainSurface, VkSwapc
     // Get Swapchain images (access-controlled)
     assert(deviceContext->vkGetSwapchainImagesKHR(deviceContext->device, swapchain, &imageCount, nullptr) == VK_SUCCESS);
     assert(imageCount != 0);
-    swapchainDepthImages    = std::vector<VkImage>(imageCount);
-    swapchainImages         = std::vector<VkImage>(imageCount);
+    swapchainImages = std::vector<VkImage>(imageCount);
     assert(deviceContext->vkGetSwapchainImagesKHR(deviceContext->device, swapchain, &imageCount, &swapchainImages[0]) == VK_SUCCESS);
 
+    swapchainDepthImages        = std::vector<VkImage>(imageCount);
     swapchainDepthImageViews    = std::vector<VkImageView>(imageCount);
     swapchainImageViews         = std::vector<VkImageView>(imageCount);
     swapchainFramebuffers       = std::vector<VkFramebuffer>(imageCount);
@@ -313,8 +323,6 @@ void VulkanSwapchain::initializeSwapchain(VkSurfaceKHR swapchainSurface, VkSwapc
     if(sampleCount != VK_SAMPLE_COUNT_1_BIT){
         swapchainMultisampleImages          = std::vector<VkImage>(imageCount);
         swapchainMultisampleImageViews      = std::vector<VkImageView>(imageCount);
-        swapchainMultisampleDepthImages     = std::vector<VkImage>(imageCount);
-        swapchainMultisampleDepthImageViews = std::vector<VkImageView>(imageCount);
     }
 
     for(uint32_t index = 0; index < imageCount; index++){
@@ -334,11 +342,6 @@ void VulkanSwapchain::initializeSwapchain(VkSurfaceKHR swapchainSurface, VkSwapc
         assert(deviceContext->vkCreateImageView(deviceContext->device, &imageCreateInfo, nullptr, &swapchainImageViews[index]) == VK_SUCCESS);
 
         // Depth buffer images must be created
-        std::vector<VkFormat> candidates = {VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT};
-        swapchainDepthFormat = deviceContext->getSupportedFormat(candidates, VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
-        assert(swapchainDepthFormat != VK_FORMAT_UNDEFINED);
-        std::cout << "Depth Format: " << swapchainDepthFormat << std::endl;
-
         VkImageCreateInfo depthCreateInfo;
         depthCreateInfo.sType                   = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
         depthCreateInfo.pNext                   = nullptr;
@@ -350,7 +353,7 @@ void VulkanSwapchain::initializeSwapchain(VkSurfaceKHR swapchainSurface, VkSwapc
         depthCreateInfo.extent.depth            = 1;
         depthCreateInfo.mipLevels               = 1;
         depthCreateInfo.arrayLayers             = 1;
-        depthCreateInfo.samples                 = VK_SAMPLE_COUNT_1_BIT;
+        depthCreateInfo.samples                 = sampleCount;
         depthCreateInfo.tiling                  = VK_IMAGE_TILING_OPTIMAL;
         depthCreateInfo.usage                   = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
         depthCreateInfo.sharingMode             = imageSharingMode;
@@ -402,7 +405,7 @@ void VulkanSwapchain::initializeSwapchain(VkSurfaceKHR swapchainSurface, VkSwapc
 
             std::cout << "Multisampled Swapchain Image #" << index << ": " << swapchainMultisampleImages[index] << std::endl;
 
-            // Depth Image View creation
+            // Multisampled Image View creation
             VkImageViewCreateInfo multisampleViewCreateInfo;
             multisampleViewCreateInfo.sType               = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
             multisampleViewCreateInfo.pNext               = nullptr;
@@ -414,42 +417,6 @@ void VulkanSwapchain::initializeSwapchain(VkSurfaceKHR swapchainSurface, VkSwapc
             multisampleViewCreateInfo.subresourceRange    = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
 
             assert(deviceContext->vkCreateImageView(deviceContext->device, &multisampleViewCreateInfo, nullptr, &swapchainMultisampleImageViews[index]) == VK_SUCCESS);
-
-            // Create multisampled depth buffer
-            VkImageCreateInfo multisampleDepthCreateInfo;
-            multisampleDepthCreateInfo.sType                   = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-            multisampleDepthCreateInfo.pNext                   = nullptr;
-            multisampleDepthCreateInfo.flags                   = 0;
-            multisampleDepthCreateInfo.imageType               = VK_IMAGE_TYPE_2D;
-            multisampleDepthCreateInfo.format                  = swapchainDepthFormat;
-            multisampleDepthCreateInfo.extent.width            = extent.width;
-            multisampleDepthCreateInfo.extent.height           = extent.height;
-            multisampleDepthCreateInfo.extent.depth            = 1;
-            multisampleDepthCreateInfo.mipLevels               = 1;
-            multisampleDepthCreateInfo.arrayLayers             = 1;
-            multisampleDepthCreateInfo.samples                 = sampleCount;
-            multisampleDepthCreateInfo.tiling                  = VK_IMAGE_TILING_OPTIMAL;
-            multisampleDepthCreateInfo.usage                   = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-            multisampleDepthCreateInfo.sharingMode             = imageSharingMode;
-            multisampleDepthCreateInfo.queueFamilyIndexCount   = queueFamilyIndices.size();
-            multisampleDepthCreateInfo.pQueueFamilyIndices     = &queueFamilyIndices.at(0);
-            multisampleDepthCreateInfo.initialLayout           = VK_IMAGE_LAYOUT_UNDEFINED;
-
-            assert(deviceContext->vkCreateImage(deviceContext->device, &multisampleDepthCreateInfo, nullptr, &swapchainMultisampleDepthImages[index]) == VK_SUCCESS);
-            swapchainDepthImageMemory.push_back(deviceContext->allocateAndBindMemory(swapchainMultisampleDepthImages[index], false));
-
-            // Depth Image View creation
-            VkImageViewCreateInfo multisampleDepthViewCreateInfo;
-            multisampleDepthViewCreateInfo.sType               = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-            multisampleDepthViewCreateInfo.pNext               = nullptr;
-            multisampleDepthViewCreateInfo.flags               = 0;
-            multisampleDepthViewCreateInfo.image               = swapchainMultisampleDepthImages[index];
-            multisampleDepthViewCreateInfo.viewType            = VK_IMAGE_VIEW_TYPE_2D;
-            multisampleDepthViewCreateInfo.format              = swapchainDepthFormat;
-            multisampleDepthViewCreateInfo.components          = {VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY };
-            multisampleDepthViewCreateInfo.subresourceRange    = {VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1};
-
-            assert(deviceContext->vkCreateImageView(deviceContext->device, &multisampleDepthViewCreateInfo, nullptr, &swapchainMultisampleDepthImageViews[index]) == VK_SUCCESS);
         }
     }
 
@@ -705,11 +672,9 @@ void VulkanSwapchain::setupFramebuffers(VkCommandBuffer cmdBuffer){
     imageCount = swapchainImages.size();
     assert(imageCount != 0);
 
-    // swapchainImageViews = std::vector<VkImageView>(imageCount);
     swapchainFramebuffers = std::vector<VkFramebuffer>(imageCount);
 
     for(uint32_t index = 0; index < imageCount; index++){
-        // deviceContext->allocateAndBindMemory(swapchainImages[index], false);
         std::cout << "Swapchain Image #" << index << ": " << swapchainImages[index] << std::endl;
 
         // Set layout before creating image view
@@ -721,7 +686,6 @@ void VulkanSwapchain::setupFramebuffers(VkCommandBuffer cmdBuffer){
         attachments.push_back(swapchainDepthImageViews[index]);
         if(sampleCount != VK_SAMPLE_COUNT_1_BIT){
             attachments.push_back(swapchainMultisampleImageViews[index]);
-            attachments.push_back(swapchainMultisampleDepthImageViews[index]);
         }
 
         VkFramebufferCreateInfo framebufferCreateInfo;
@@ -744,9 +708,68 @@ void VulkanSwapchain::setupFramebuffers(VkCommandBuffer cmdBuffer){
 void VulkanSwapchain::setupMultisampling(VkSampleCountFlagBits __sampleCount){
     sampleCount = __sampleCount;
 
-    // Check requested sample count against device limits
-    if((deviceContext->deviceProperties.limits.framebufferColorSampleCounts & sampleCount) != sampleCount ||
-        (deviceContext->deviceProperties.limits.framebufferDepthSampleCounts & sampleCount) != sampleCount){
-        std::runtime_error("Invalid sample count requested: " + sampleCount);
+    // Get Device Format Properties for Framebuffers
+    uint32_t deviceNumber = deviceContext->deviceNumber;
+    VkImageFormatProperties colorFormatProperties;
+    VkImageFormatProperties depthFormatProperties;
+    deviceContext->instance->vkGetPhysicalDeviceImageFormatProperties(deviceContext->getPhysicalDevice(),
+                                                                      swapchainFormat,
+                                                                      VK_IMAGE_TYPE_2D, 
+                                                                      VK_IMAGE_TILING_OPTIMAL,
+                                                                      VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+                                                                      0,
+                                                                      &colorFormatProperties);
+
+    deviceContext->instance->vkGetPhysicalDeviceImageFormatProperties(deviceContext->getPhysicalDevice(),
+                                                                      swapchainDepthFormat,
+                                                                      VK_IMAGE_TYPE_2D, 
+                                                                      VK_IMAGE_TILING_OPTIMAL,
+                                                                      VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+                                                                      0,
+                                                                      &depthFormatProperties);
+
+    VkSampleCountFlagBits sampleCountFlag;
+    VkSampleCountFlags sampleCountLimits = colorFormatProperties.sampleCounts & depthFormatProperties.sampleCounts;
+
+    // Sanitize input to only use valid values
+    switch(sampleCount){
+        case 1:
+            sampleCountFlag = VK_SAMPLE_COUNT_1_BIT;
+            break;
+        case 2:
+            sampleCountFlag = VK_SAMPLE_COUNT_2_BIT;
+            break;
+        case 4:
+            sampleCountFlag = VK_SAMPLE_COUNT_4_BIT;
+            break;
+        case 8:
+            sampleCountFlag = VK_SAMPLE_COUNT_8_BIT;
+            break;
+        case 16:
+            sampleCountFlag = VK_SAMPLE_COUNT_16_BIT;
+            break;
+        case 32:
+            sampleCountFlag = VK_SAMPLE_COUNT_32_BIT;
+            break;
+        case 64:
+            sampleCountFlag = VK_SAMPLE_COUNT_64_BIT;
+            break;
+        default:
+            sampleCountFlag = VK_SAMPLE_COUNT_1_BIT;
     }
+
+    std::cout << "Requested sample count {" << std::hex << sampleCountFlag << "}." << std::endl;
+    std::cout << "Sample count limits {" << std::hex << sampleCountLimits << "}." << std::endl;
+    // If selected sample count isn't supported, find the closest supported count
+    if((sampleCountFlag & sampleCountLimits) == 0){
+        std::cout << "Requested sample count is not supported." << std::endl;
+
+        while((sampleCountFlag & sampleCountLimits) == 0){
+            sampleCountFlag = (VkSampleCountFlagBits)((uint32_t)sampleCountFlag >> 1);
+            std::cout << "Candidate sample count {" << sampleCountFlag << "}" << std::endl;
+        }
+        std::cout << "Falling back to closest supported count {" << sampleCountFlag << "}" << std::endl;
+    }
+
+    sampleCount = sampleCountFlag;
 }

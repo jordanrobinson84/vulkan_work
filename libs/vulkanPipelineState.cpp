@@ -80,16 +80,16 @@ VulkanPipelineState::~VulkanPipelineState() {
 
 void VulkanPipelineState::addDescriptorSetLayoutBindings(uint32_t set, const std::vector<VkDescriptorSetLayoutBinding>& bindings){
     // Get map entry
-    std::vector<VkDescriptorSetLayoutBinding>* mapEntry;
+    std::vector<VkDescriptorSetLayoutBinding> mapEntry;
     try{
-        mapEntry = &descriptorSetLayoutBindings.at(set);
+        mapEntry = descriptorSetLayoutBindings.at(set);
     }catch(std::out_of_range oor){
         // Add new map entry
-        mapEntry = new std::vector<VkDescriptorSetLayoutBinding>();
+        mapEntry = std::vector<VkDescriptorSetLayoutBinding>();
     }
     std::cout << "Adding " << bindings.size() << " bindings" << std::endl;
-    mapEntry->insert(mapEntry->begin(), bindings.begin(), bindings.end());
-    descriptorSetLayoutBindings.emplace(set, *mapEntry);
+    mapEntry.insert(mapEntry.begin(), bindings.begin(), bindings.end());
+    descriptorSetLayoutBindings.emplace(set, mapEntry);
 }
 
 void VulkanPipelineState::addShaderStage(std::string shaderFileName, VkShaderStageFlagBits stage, const std::string entryPointName, VkSpecializationInfo * specialization){

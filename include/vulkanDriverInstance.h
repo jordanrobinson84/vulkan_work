@@ -60,15 +60,19 @@ class VulkanCommandPool;
 class VulkanDriverInstance;
 
 struct VulkanDevice{
-    VulkanDevice(VulkanDriverInstance * __instance, uint32_t __deviceNumber, bool debugPrint = true);
+    VulkanDevice(VulkanDriverInstance * __instance, uint32_t __deviceNumber, const VkPhysicalDeviceFeatures * requestedFeatures = nullptr, const VkPhysicalDeviceFeatures * requiredFeatures = nullptr, bool debugPrint = true);
     ~VulkanDevice();
+    static bool                         comparePhysicalDeviceFeatureSets(const VkPhysicalDeviceFeatures * featureSetA, const VkPhysicalDeviceFeatures * featureSetB);
+    static VkPhysicalDeviceFeatures     filterPhysicalDeviceFeatures(const VkPhysicalDeviceFeatures * featureSetA, const VkPhysicalDeviceFeatures * featureSetB);
     VkDescriptorPool *                  getDescriptorPool(const std::vector<VkDescriptorPoolSize>& descriptorSizes);
+    VkPhysicalDevice                    getPhysicalDevice();
     uint32_t                            getUsableMemoryType(uint32_t memoryTypeBits, const VkMemoryPropertyFlags requiredProperties);
     uint32_t                            getUsableDeviceQueueFamily(const VkQueueFlags requiredProperties);
     VulkanCommandPool *                 getCommandPool(VkCommandPoolCreateFlags flags, uint32_t queueFamilyIndex);
     //void                                allocateAndBindMemory(VkBuffer buffer, bool hostVisible);
     VkDeviceMemory                      allocateAndBindMemory(VkImage image, bool hostVisible);
     VkFormat                            getSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
+    VkSampleCountFlagBits               requestSupportedSampleFlags(uint32_t sampleCount);
 
     VkDevice                            device;
     VulkanDriverInstance *              instance;

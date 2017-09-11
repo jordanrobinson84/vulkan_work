@@ -10,7 +10,140 @@
 #define VK_INSTANCE_FUNCTION(function) function = (PFN_##function)( vkGetInstanceProcAddr( instance, macrostr(function) )); assert( function != nullptr);
 #define VK_DEVICE_FUNCTION(function) function = (PFN_##function)( instance->vkGetDeviceProcAddr( device, #function )); assert( function != nullptr);
 
-VulkanDevice::VulkanDevice(VulkanDriverInstance * __instance, uint32_t __deviceNumber, bool debugPrint){
+bool VulkanDevice::comparePhysicalDeviceFeatureSets(const VkPhysicalDeviceFeatures * featureSetA, const VkPhysicalDeviceFeatures * featureSetB){
+    bool featureSetsEqual = true;
+
+    // Ensure that both pointers are valid
+    assert(featureSetA != nullptr && featureSetB != nullptr);
+
+    // Perform comparison
+    featureSetsEqual &= (featureSetA->robustBufferAccess == featureSetB->robustBufferAccess);
+    featureSetsEqual &= (featureSetA->fullDrawIndexUint32 == featureSetB->fullDrawIndexUint32);
+    featureSetsEqual &= (featureSetA->imageCubeArray == featureSetB->imageCubeArray);
+    featureSetsEqual &= (featureSetA->independentBlend == featureSetB->independentBlend);
+    featureSetsEqual &= (featureSetA->geometryShader == featureSetB->geometryShader);
+    featureSetsEqual &= (featureSetA->tessellationShader == featureSetB->tessellationShader);
+    featureSetsEqual &= (featureSetA->sampleRateShading == featureSetB->sampleRateShading);
+    featureSetsEqual &= (featureSetA->dualSrcBlend == featureSetB->dualSrcBlend);
+    featureSetsEqual &= (featureSetA->logicOp == featureSetB->logicOp);
+    featureSetsEqual &= (featureSetA->multiDrawIndirect == featureSetB->multiDrawIndirect);
+    featureSetsEqual &= (featureSetA->drawIndirectFirstInstance == featureSetB->drawIndirectFirstInstance);
+    featureSetsEqual &= (featureSetA->depthClamp == featureSetB->depthClamp);
+    featureSetsEqual &= (featureSetA->depthBiasClamp == featureSetB->depthBiasClamp);
+    featureSetsEqual &= (featureSetA->fillModeNonSolid == featureSetB->fillModeNonSolid);
+    featureSetsEqual &= (featureSetA->depthBounds == featureSetB->depthBounds);
+    featureSetsEqual &= (featureSetA->wideLines == featureSetB->wideLines);
+    featureSetsEqual &= (featureSetA->largePoints == featureSetB->largePoints);
+    featureSetsEqual &= (featureSetA->alphaToOne == featureSetB->alphaToOne);
+    featureSetsEqual &= (featureSetA->multiViewport == featureSetB->multiViewport);
+    featureSetsEqual &= (featureSetA->samplerAnisotropy == featureSetB->samplerAnisotropy);
+    featureSetsEqual &= (featureSetA->textureCompressionETC2 == featureSetB->textureCompressionETC2);
+    featureSetsEqual &= (featureSetA->textureCompressionASTC_LDR == featureSetB->textureCompressionASTC_LDR);
+    featureSetsEqual &= (featureSetA->textureCompressionBC == featureSetB->textureCompressionBC);
+    featureSetsEqual &= (featureSetA->occlusionQueryPrecise == featureSetB->occlusionQueryPrecise);
+    featureSetsEqual &= (featureSetA->pipelineStatisticsQuery == featureSetB->pipelineStatisticsQuery);
+    featureSetsEqual &= (featureSetA->vertexPipelineStoresAndAtomics == featureSetB->vertexPipelineStoresAndAtomics);
+    featureSetsEqual &= (featureSetA->fragmentStoresAndAtomics == featureSetB->fragmentStoresAndAtomics);
+    featureSetsEqual &= (featureSetA->shaderTessellationAndGeometryPointSize == featureSetB->shaderTessellationAndGeometryPointSize);
+    featureSetsEqual &= (featureSetA->shaderImageGatherExtended == featureSetB->shaderImageGatherExtended);
+    featureSetsEqual &= (featureSetA->shaderStorageImageExtendedFormats == featureSetB->shaderStorageImageExtendedFormats);
+    featureSetsEqual &= (featureSetA->shaderStorageImageMultisample == featureSetB->shaderStorageImageMultisample);
+    featureSetsEqual &= (featureSetA->shaderStorageImageReadWithoutFormat == featureSetB->shaderStorageImageReadWithoutFormat);
+    featureSetsEqual &= (featureSetA->shaderStorageImageWriteWithoutFormat == featureSetB->shaderStorageImageWriteWithoutFormat);
+    featureSetsEqual &= (featureSetA->shaderUniformBufferArrayDynamicIndexing == featureSetB->shaderUniformBufferArrayDynamicIndexing);
+    featureSetsEqual &= (featureSetA->shaderSampledImageArrayDynamicIndexing == featureSetB->shaderSampledImageArrayDynamicIndexing);
+    featureSetsEqual &= (featureSetA->shaderStorageBufferArrayDynamicIndexing == featureSetB->shaderStorageBufferArrayDynamicIndexing);
+    featureSetsEqual &= (featureSetA->shaderStorageImageArrayDynamicIndexing == featureSetB->shaderStorageImageArrayDynamicIndexing);
+    featureSetsEqual &= (featureSetA->shaderClipDistance == featureSetB->shaderClipDistance);
+    featureSetsEqual &= (featureSetA->shaderCullDistance == featureSetB->shaderCullDistance);
+    featureSetsEqual &= (featureSetA->shaderFloat64 == featureSetB->shaderFloat64);
+    featureSetsEqual &= (featureSetA->shaderInt64 == featureSetB->shaderInt64);
+    featureSetsEqual &= (featureSetA->shaderInt16 == featureSetB->shaderInt16);
+    featureSetsEqual &= (featureSetA->shaderResourceResidency == featureSetB->shaderResourceResidency);
+    featureSetsEqual &= (featureSetA->shaderResourceMinLod == featureSetB->shaderResourceMinLod);
+    featureSetsEqual &= (featureSetA->sparseBinding == featureSetB->sparseBinding);
+    featureSetsEqual &= (featureSetA->sparseResidencyBuffer == featureSetB->sparseResidencyBuffer);
+    featureSetsEqual &= (featureSetA->sparseResidencyImage2D == featureSetB->sparseResidencyImage2D);
+    featureSetsEqual &= (featureSetA->sparseResidencyImage3D == featureSetB->sparseResidencyImage3D);
+    featureSetsEqual &= (featureSetA->sparseResidency2Samples == featureSetB->sparseResidency2Samples);
+    featureSetsEqual &= (featureSetA->sparseResidency4Samples == featureSetB->sparseResidency4Samples);
+    featureSetsEqual &= (featureSetA->sparseResidency8Samples == featureSetB->sparseResidency8Samples);
+    featureSetsEqual &= (featureSetA->sparseResidency16Samples == featureSetB->sparseResidency16Samples);
+    featureSetsEqual &= (featureSetA->sparseResidencyAliased == featureSetB->sparseResidencyAliased);
+    featureSetsEqual &= (featureSetA->variableMultisampleRate == featureSetB->variableMultisampleRate);
+    featureSetsEqual &= (featureSetA->inheritedQueries == featureSetB->inheritedQueries);
+
+    return featureSetsEqual;
+}
+
+VkPhysicalDeviceFeatures VulkanDevice::filterPhysicalDeviceFeatures(const VkPhysicalDeviceFeatures * featureSetA, const VkPhysicalDeviceFeatures * featureSetB){
+    VkPhysicalDeviceFeatures filteredFeatureSet;
+
+    // Ensure that both pointers are valid
+    assert(featureSetA != nullptr && featureSetB != nullptr);
+
+    // TODO: Add support for multiple compare operations using lambdas
+
+    // Perform filtering
+    filteredFeatureSet.robustBufferAccess                       = featureSetA->robustBufferAccess & featureSetB->robustBufferAccess;
+    filteredFeatureSet.fullDrawIndexUint32                      = featureSetA->fullDrawIndexUint32 & featureSetB->fullDrawIndexUint32;
+    filteredFeatureSet.imageCubeArray                           = featureSetA->imageCubeArray & featureSetB->imageCubeArray;
+    filteredFeatureSet.independentBlend                         = featureSetA->independentBlend & featureSetB->independentBlend;
+    filteredFeatureSet.geometryShader                           = featureSetA->geometryShader & featureSetB->geometryShader;
+    filteredFeatureSet.tessellationShader                       = featureSetA->tessellationShader & featureSetB->tessellationShader;
+    filteredFeatureSet.sampleRateShading                        = featureSetA->sampleRateShading & featureSetB->sampleRateShading;
+    filteredFeatureSet.dualSrcBlend                             = featureSetA->dualSrcBlend & featureSetB->dualSrcBlend;
+    filteredFeatureSet.logicOp                                  = featureSetA->logicOp & featureSetB->logicOp;
+    filteredFeatureSet.multiDrawIndirect                        = featureSetA->multiDrawIndirect & featureSetB->multiDrawIndirect;
+    filteredFeatureSet.drawIndirectFirstInstance                = featureSetA->drawIndirectFirstInstance & featureSetB->drawIndirectFirstInstance;
+    filteredFeatureSet.depthClamp                               = featureSetA->depthClamp & featureSetB->depthClamp;
+    filteredFeatureSet.depthBiasClamp                           = featureSetA->depthBiasClamp & featureSetB->depthBiasClamp;
+    filteredFeatureSet.fillModeNonSolid                         = featureSetA->fillModeNonSolid & featureSetB->fillModeNonSolid;
+    filteredFeatureSet.depthBounds                              = featureSetA->depthBounds & featureSetB->depthBounds;
+    filteredFeatureSet.wideLines                                = featureSetA->wideLines & featureSetB->wideLines;
+    filteredFeatureSet.largePoints                              = featureSetA->largePoints & featureSetB->largePoints;
+    filteredFeatureSet.alphaToOne                               = featureSetA->alphaToOne & featureSetB->alphaToOne;
+    filteredFeatureSet.multiViewport                            = featureSetA->multiViewport & featureSetB->multiViewport;
+    filteredFeatureSet.samplerAnisotropy                        = featureSetA->samplerAnisotropy & featureSetB->samplerAnisotropy;
+    filteredFeatureSet.textureCompressionETC2                   = featureSetA->textureCompressionETC2 & featureSetB->textureCompressionETC2;
+    filteredFeatureSet.textureCompressionASTC_LDR               = featureSetA->textureCompressionASTC_LDR & featureSetB->textureCompressionASTC_LDR;
+    filteredFeatureSet.textureCompressionBC                     = featureSetA->textureCompressionBC & featureSetB->textureCompressionBC;
+    filteredFeatureSet.occlusionQueryPrecise                    = featureSetA->occlusionQueryPrecise & featureSetB->occlusionQueryPrecise;
+    filteredFeatureSet.pipelineStatisticsQuery                  = featureSetA->pipelineStatisticsQuery & featureSetB->pipelineStatisticsQuery;
+    filteredFeatureSet.vertexPipelineStoresAndAtomics           = featureSetA->vertexPipelineStoresAndAtomics & featureSetB->vertexPipelineStoresAndAtomics;
+    filteredFeatureSet.fragmentStoresAndAtomics                 = featureSetA->fragmentStoresAndAtomics & featureSetB->fragmentStoresAndAtomics;
+    filteredFeatureSet.shaderTessellationAndGeometryPointSize   = featureSetA->shaderTessellationAndGeometryPointSize & featureSetB->shaderTessellationAndGeometryPointSize;
+    filteredFeatureSet.shaderImageGatherExtended                = featureSetA->shaderImageGatherExtended & featureSetB->shaderImageGatherExtended;
+    filteredFeatureSet.shaderStorageImageExtendedFormats        = featureSetA->shaderStorageImageExtendedFormats & featureSetB->shaderStorageImageExtendedFormats;
+    filteredFeatureSet.shaderStorageImageMultisample            = featureSetA->shaderStorageImageMultisample & featureSetB->shaderStorageImageMultisample;
+    filteredFeatureSet.shaderStorageImageReadWithoutFormat      = featureSetA->shaderStorageImageReadWithoutFormat & featureSetB->shaderStorageImageReadWithoutFormat;
+    filteredFeatureSet.shaderStorageImageWriteWithoutFormat     = featureSetA->shaderStorageImageWriteWithoutFormat & featureSetB->shaderStorageImageWriteWithoutFormat;
+    filteredFeatureSet.shaderUniformBufferArrayDynamicIndexing  = featureSetA->shaderUniformBufferArrayDynamicIndexing & featureSetB->shaderUniformBufferArrayDynamicIndexing;
+    filteredFeatureSet.shaderSampledImageArrayDynamicIndexing   = featureSetA->shaderSampledImageArrayDynamicIndexing & featureSetB->shaderSampledImageArrayDynamicIndexing;
+    filteredFeatureSet.shaderStorageBufferArrayDynamicIndexing  = featureSetA->shaderStorageBufferArrayDynamicIndexing & featureSetB->shaderStorageBufferArrayDynamicIndexing;
+    filteredFeatureSet.shaderStorageImageArrayDynamicIndexing   = featureSetA->shaderStorageImageArrayDynamicIndexing & featureSetB->shaderStorageImageArrayDynamicIndexing;
+    filteredFeatureSet.shaderClipDistance                       = featureSetA->shaderClipDistance & featureSetB->shaderClipDistance;
+    filteredFeatureSet.shaderCullDistance                       = featureSetA->shaderCullDistance & featureSetB->shaderCullDistance;
+    filteredFeatureSet.shaderFloat64                            = featureSetA->shaderFloat64 & featureSetB->shaderFloat64;
+    filteredFeatureSet.shaderInt64                              = featureSetA->shaderInt64 & featureSetB->shaderInt64;
+    filteredFeatureSet.shaderInt16                              = featureSetA->shaderInt16 & featureSetB->shaderInt16;
+    filteredFeatureSet.shaderResourceResidency                  = featureSetA->shaderResourceResidency & featureSetB->shaderResourceResidency;
+    filteredFeatureSet.shaderResourceMinLod                     = featureSetA->shaderResourceMinLod & featureSetB->shaderResourceMinLod;
+    filteredFeatureSet.sparseBinding                            = featureSetA->sparseBinding & featureSetB->sparseBinding;
+    filteredFeatureSet.sparseResidencyBuffer                    = featureSetA->sparseResidencyBuffer & featureSetB->sparseResidencyBuffer;
+    filteredFeatureSet.sparseResidencyImage2D                   = featureSetA->sparseResidencyImage2D & featureSetB->sparseResidencyImage2D;
+    filteredFeatureSet.sparseResidencyImage3D                   = featureSetA->sparseResidencyImage3D & featureSetB->sparseResidencyImage3D;
+    filteredFeatureSet.sparseResidency2Samples                  = featureSetA->sparseResidency2Samples & featureSetB->sparseResidency2Samples;
+    filteredFeatureSet.sparseResidency4Samples                  = featureSetA->sparseResidency4Samples & featureSetB->sparseResidency4Samples;
+    filteredFeatureSet.sparseResidency8Samples                  = featureSetA->sparseResidency8Samples & featureSetB->sparseResidency8Samples;
+    filteredFeatureSet.sparseResidency16Samples                 = featureSetA->sparseResidency16Samples & featureSetB->sparseResidency16Samples;
+    filteredFeatureSet.sparseResidencyAliased                   = featureSetA->sparseResidencyAliased & featureSetB->sparseResidencyAliased;
+    filteredFeatureSet.variableMultisampleRate                  = featureSetA->variableMultisampleRate & featureSetB->variableMultisampleRate;
+    filteredFeatureSet.inheritedQueries                         = featureSetA->inheritedQueries & featureSetB->inheritedQueries;
+
+    return filteredFeatureSet;
+}
+VulkanDevice::VulkanDevice(VulkanDriverInstance * __instance, uint32_t __deviceNumber, const VkPhysicalDeviceFeatures * requestedFeatures, const VkPhysicalDeviceFeatures * requiredFeatures, bool debugPrint){
     instance = __instance;
     deviceNumber = __deviceNumber;
     assert(instance != nullptr);
@@ -18,6 +151,34 @@ VulkanDevice::VulkanDevice(VulkanDriverInstance * __instance, uint32_t __deviceN
 
     // Get Properties
     instance->vkGetPhysicalDeviceProperties(instance->physicalDevices[deviceNumber], &deviceProperties);
+
+    // Get Device Features
+    instance->vkGetPhysicalDeviceFeatures(instance->physicalDevices[deviceNumber], &deviceFeatures);
+
+    // Handle Features
+    VkPhysicalDeviceFeatures appliedFeatures;
+    if(requestedFeatures != nullptr){
+        // Required Features
+        if(requiredFeatures != nullptr){
+            VkPhysicalDeviceFeatures requiredFeatureSetIntersection = VulkanDevice::filterPhysicalDeviceFeatures(&deviceFeatures, requiredFeatures);
+            if(VulkanDevice::comparePhysicalDeviceFeatureSets(&requiredFeatureSetIntersection, requiredFeatures) != true){
+                std::cout << "Required features not supported on this device! Exiting." << std::endl;
+                exit(-1);
+            }
+
+            // Requested features must be a superset of required features
+            VkPhysicalDeviceFeatures requestedFeatureSetIntersection = VulkanDevice::filterPhysicalDeviceFeatures(requestedFeatures, requiredFeatures);
+            assert(VulkanDevice::comparePhysicalDeviceFeatureSets(&requestedFeatureSetIntersection, requiredFeatures) == true);
+        }
+
+        appliedFeatures = VulkanDevice::filterPhysicalDeviceFeatures(requestedFeatures, &deviceFeatures);
+    }else if(requiredFeatures != nullptr){
+        appliedFeatures = VulkanDevice::filterPhysicalDeviceFeatures(&deviceFeatures, requiredFeatures);
+        if(VulkanDevice::comparePhysicalDeviceFeatureSets(&appliedFeatures, requiredFeatures) != true){
+            std::cout << "Required features not supported on this device! Exiting." << std::endl;
+            exit(-1);
+        }
+    }
 
     if (debugPrint){
         uint32_t majorVersion = VK_VERSION_MAJOR(deviceProperties.apiVersion);
@@ -114,7 +275,7 @@ VulkanDevice::VulkanDevice(VulkanDriverInstance * __instance, uint32_t __deviceN
         for (uint32_t memoryTypeIndex = 0; memoryTypeIndex < deviceMemoryProperties.memoryTypeCount; memoryTypeIndex++){
             VkMemoryType memoryType = deviceMemoryProperties.memoryTypes[memoryTypeIndex];
             std::string properties = "\n         Heap Index ";
-            properties += memoryType.heapIndex;
+            properties += std::to_string(memoryType.heapIndex);
             properties += "\n         ";
             uint32_t propertyBits[] = { VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 
                                         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, 
@@ -197,7 +358,7 @@ VulkanDevice::VulkanDevice(VulkanDriverInstance * __instance, uint32_t __deviceN
     creationInfo.ppEnabledLayerNames = nullptr;
     creationInfo.enabledExtensionCount = 1;
     creationInfo.ppEnabledExtensionNames = &enabledExtensions[0];
-    creationInfo.pEnabledFeatures = nullptr;
+    creationInfo.pEnabledFeatures =  ((requiredFeatures != nullptr || requestedFeatures != nullptr) ? &appliedFeatures : nullptr);
 
     // Create Device
     assert (instance->vkCreateDevice(instance->physicalDevices[deviceNumber], &creationInfo, nullptr, &device) == VK_SUCCESS);
@@ -378,6 +539,10 @@ VulkanCommandPool * VulkanDevice::getCommandPool(VkCommandPoolCreateFlags flags,
     return commandPool;
 }
 
+VkPhysicalDevice VulkanDevice::getPhysicalDevice(){
+    return instance->physicalDevices.at(deviceNumber);
+}
+
 uint32_t VulkanDevice::getUsableMemoryType(uint32_t memoryTypeBits, const VkMemoryPropertyFlags requiredProperties){
     uint32_t type = (std::numeric_limits<uint32_t>::max)();
     uint32_t memoryTypeIndex = 0;
@@ -495,6 +660,50 @@ VkFormat VulkanDevice::getSupportedFormat(const std::vector<VkFormat>& candidate
     }
 
     return format;
+}
+
+VkSampleCountFlagBits VulkanDevice::requestSupportedSampleFlags(uint32_t sampleCount){
+    VkSampleCountFlagBits sampleCountFlag;
+    VkSampleCountFlags sampleCountLimits = deviceImageFormatProperties.sampleCounts;
+    // Convert sample count to enumeration
+    switch(sampleCount){
+        case 1:
+            sampleCountFlag = VK_SAMPLE_COUNT_1_BIT;
+            break;
+        case 2:
+            sampleCountFlag = VK_SAMPLE_COUNT_2_BIT;
+            break;
+        case 4:
+            sampleCountFlag = VK_SAMPLE_COUNT_4_BIT;
+            break;
+        case 8:
+            sampleCountFlag = VK_SAMPLE_COUNT_8_BIT;
+            break;
+        case 16:
+            sampleCountFlag = VK_SAMPLE_COUNT_16_BIT;
+            break;
+        case 32:
+            sampleCountFlag = VK_SAMPLE_COUNT_32_BIT;
+            break;
+        case 64:
+            sampleCountFlag = VK_SAMPLE_COUNT_64_BIT;
+            break;
+        default:
+            sampleCountFlag = VK_SAMPLE_COUNT_1_BIT;
+    }
+
+    std::cout << "Request sample count {" << std::hex << sampleCountFlag << "}." << std::endl;
+    std::cout << "Sample count limits {" << std::hex << sampleCountLimits << "}." << std::endl;
+    // If selected sample count isn't supported, find the closest supported count
+    if((sampleCountFlag & sampleCountLimits) != sampleCountFlag){
+        std::cout << "Request sample count is not supported." << std::endl;
+        while((sampleCountFlag & sampleCountLimits) != sampleCountFlag){
+            sampleCountFlag = (VkSampleCountFlagBits)((uint32_t)sampleCountFlag >> 1);
+        }
+        std::cout << "Falling back to closest supported count {" << sampleCountFlag << "}" << std::endl;
+    }
+
+    return sampleCountFlag;
 }
 
 VulkanDriverInstance::VulkanDriverInstance(std::string applicationName){

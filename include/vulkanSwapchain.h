@@ -4,6 +4,7 @@
 #include "vulkanDriverInstance.h"
 #include "vulkanPipelineState.h"
 #include "vulkanRenderPass.h"
+#include "vulkanBuffer.h"
 
 struct VulkanDevice;
 class VulkanDriverInstance;
@@ -27,7 +28,6 @@ public:
     void setPipelineState(VulkanPipelineState *vps);
     void setupFramebuffers(VkCommandBuffer cmdBuffer);
     void setupMultisampling(VkSampleCountFlagBits __sampleCount);
-    // void setupSwapchain(VkCommandBuffer cmdBuffer, VkRenderPass renderPass);
 
     VulkanDriverInstance *              instance;
     VulkanDevice *                      deviceContext;
@@ -52,9 +52,6 @@ public:
     std::vector<VkImage>                swapchainMultisampleImages;
     std::vector<VkDeviceMemory>         swapchainMultisampleImageMemory;
     std::vector<VkImageView>            swapchainMultisampleImageViews;
-    std::vector<VkImage>                swapchainMultisampleDepthImages;
-    std::vector<VkDeviceMemory>         swapchainMultisampleDepthImageMemory;
-    std::vector<VkImageView>            swapchainMultisampleDepthImageViews;
 
     std::vector<VkFramebuffer>          swapchainFramebuffers;
     std::vector<uint32_t>               queueFamilyIndices;

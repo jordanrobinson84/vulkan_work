@@ -242,7 +242,7 @@ int main(){
     // Wait
     // std::cin.get();
     assert(deviceContext->vkDeviceWaitIdle(deviceContext->device) == VK_SUCCESS);
-    renderPool->freeCommandBuffers(window->swapchain->imageCount, cmdBuffer);
+    renderPool->freeCommandBuffers(window->swapchain->imageCount, &cmdBuffer);
     delete renderPool;
 
     return 0;

@@ -115,7 +115,7 @@ LRESULT CALLBACK Win32Window::handleMessage(HWND hWnd, UINT uMsg, WPARAM wParam,
             std::cout << "WM_SIZE (Width, Height): " << "(" << lWidth << ", " << lHeight << ")" << std::endl;
             windowWidth = lWidth;
             windowHeight = lHeight;
-            if(swapchain != nullptr){
+            if(swapchain != nullptr && wParam == SIZE_RESTORED){
                 swapchain->recreateSwapchain();
             }
             break;

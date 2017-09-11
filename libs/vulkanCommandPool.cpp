@@ -30,10 +30,10 @@ VkCommandBuffer * VulkanCommandPool::getCommandBuffers(VkCommandBufferLevel leve
     return commandBufferArray;
 }
 
-void VulkanCommandPool::freeCommandBuffers(uint32_t commandBufferCount, const VkCommandBuffer * commandBuffers){
-    // Delete and free memory
-    deviceContext->vkFreeCommandBuffers(deviceContext->device, commandPoolHandle, commandBufferCount, commandBuffers);
-    delete[] commandBuffers;
+void VulkanCommandPool::freeCommandBuffers(uint32_t commandBufferCount, VkCommandBuffer ** commandBuffers){
+    assert(commandBufferCount >= 1);
+    // Free command buffers
+    deviceContext->vkFreeCommandBuffers(deviceContext->device, commandPoolHandle, commandBufferCount, *commandBuffers);
 }
 
 void VulkanCommandPool::resetCommandBuffer(VkCommandBuffer commandBuffer, VkCommandBufferResetFlags flags){
