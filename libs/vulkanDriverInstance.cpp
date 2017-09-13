@@ -664,7 +664,7 @@ VkFormat VulkanDevice::getSupportedFormat(const std::vector<VkFormat>& candidate
 
 VkSampleCountFlagBits VulkanDevice::requestSupportedSampleFlags(uint32_t sampleCount){
     VkSampleCountFlagBits sampleCountFlag;
-    VkSampleCountFlags sampleCountLimits = deviceImageFormatProperties.sampleCounts;
+
     // Convert sample count to enumeration
     switch(sampleCount){
         case 1:
@@ -692,17 +692,7 @@ VkSampleCountFlagBits VulkanDevice::requestSupportedSampleFlags(uint32_t sampleC
             sampleCountFlag = VK_SAMPLE_COUNT_1_BIT;
     }
 
-    std::cout << "Request sample count {" << std::hex << sampleCountFlag << "}." << std::endl;
-    std::cout << "Sample count limits {" << std::hex << sampleCountLimits << "}." << std::endl;
-    // If selected sample count isn't supported, find the closest supported count
-    if((sampleCountFlag & sampleCountLimits) != sampleCountFlag){
-        std::cout << "Request sample count is not supported." << std::endl;
-        while((sampleCountFlag & sampleCountLimits) != sampleCountFlag){
-            sampleCountFlag = (VkSampleCountFlagBits)((uint32_t)sampleCountFlag >> 1);
-        }
-        std::cout << "Falling back to closest supported count {" << sampleCountFlag << "}" << std::endl;
-    }
-
+    std::cout << "Requested sample count {" << std::hex << sampleCountFlag << "}." << std::endl;
     return sampleCountFlag;
 }
 

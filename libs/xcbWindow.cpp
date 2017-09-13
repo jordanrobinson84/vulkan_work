@@ -30,7 +30,7 @@ XcbWindow::XcbWindow(const uint32_t _windowWidth,
 
     uint32_t value_list[] = {
     screen->white_pixel,
-    XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_KEY_PRESS | XCB_EVENT_MASK_STRUCTURE_NOTIFY | XCB_EVENT_MASK_RESIZE_REDIRECT
+    XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_KEY_PRESS | XCB_EVENT_MASK_STRUCTURE_NOTIFY
     };
 
     // Create window

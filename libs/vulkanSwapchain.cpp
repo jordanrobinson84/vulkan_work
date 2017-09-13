@@ -5,6 +5,8 @@ VulkanSwapchain::VulkanSwapchain(VulkanDriverInstance * __instance, VulkanDevice
     instance            = __instance;
     deviceContext       = __deviceContext;
     sampleCount         = __sampleCount;
+    extent.width        = -1;
+    extent.height       = -1;
 
     assert(deviceContext != nullptr);
     pipelineState = nullptr;
@@ -567,6 +569,7 @@ void VulkanSwapchain::querySwapchain(){
     VkResult result = deviceContext->instance->vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, &surfaceCaps);
     assert(result == VK_SUCCESS);
     if (surfaceCaps.currentExtent.width == (std::numeric_limits<uint32_t>::max)() ) { // Prevent macro expansion of conflicting windows.h max define
+        std::cout << "Calculating Swapchain Extents" << std::endl;
         extent.width    = swapchainWidth;
         extent.height   = swapchainHeight;
 
@@ -761,6 +764,7 @@ void VulkanSwapchain::setupMultisampling(VkSampleCountFlagBits __sampleCount){
     VkSampleCountFlags sampleCountLimits = colorFormatProperties.sampleCounts & depthFormatProperties.sampleCounts;
 
     // Sanitize input to only use valid values
+    std::cout << "Requested sample count {" << std::hex << sampleCount << "}." << std::endl;
     switch(sampleCount){
         case 1:
             sampleCountFlag = VK_SAMPLE_COUNT_1_BIT;
@@ -787,7 +791,7 @@ void VulkanSwapchain::setupMultisampling(VkSampleCountFlagBits __sampleCount){
             sampleCountFlag = VK_SAMPLE_COUNT_1_BIT;
     }
 
-    std::cout << "Requested sample count {" << std::hex << sampleCountFlag << "}." << std::endl;
+    std::cout << "Sanitized sample count {" << std::hex << sampleCountFlag << "}." << std::endl;
     std::cout << "Sample count limits {" << std::hex << sampleCountLimits << "}." << std::endl;
     // If selected sample count isn't supported, find the closest supported count
     if((sampleCountFlag & sampleCountLimits) == 0){

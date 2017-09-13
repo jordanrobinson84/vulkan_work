@@ -63,6 +63,7 @@ int main(int argc, char **argv){
         wcstombs(&multisampleCmdLine[0], argv[1], multisampleCmdLineSize);
 #elif defined (__linux__)
         multisampleCmdLine = std::string(argv[1]);
+        std::cout << "Multisample command line: " << multisampleCmdLine << std::endl;
 #endif
         std::regex msaaRegex("MSAASampleCount=([0-9]+)");
         std::smatch matches;
@@ -72,11 +73,12 @@ int main(int argc, char **argv){
             try{
                 sampleCountString = (matches[1].str)();
                 sampleCount = std::stoul(sampleCountString);
+                std::cout << "Sample count \"" << sampleCountString << "\" specified." << std::endl;
             }catch(std::out_of_range oor){
-                std::cout << "Invalid sample count" << sampleCountString << "specified, the proper usage is \"MSAASampleCount=<count>\"." << std::endl;
+                std::cout << "Invalid sample count \"" << sampleCountString << "\" specified, the proper usage is \"MSAASampleCount=<count>\"." << std::endl;
                 sampleCount = 1;
             }catch(std::invalid_argument ia){
-                std::cout << "Invalid sample count" << sampleCountString << "specified, the proper usage is \"MSAASampleCount=<count>\"." << std::endl;
+                std::cout << "Invalid sample count \"" << sampleCountString << "\" specified, the proper usage is \"MSAASampleCount=<count>\"." << std::endl;
                 sampleCount = 1;
             }
         }
@@ -503,10 +505,6 @@ int main(int argc, char **argv){
         // Update timer
         end = std::chrono::high_resolution_clock::now();
 
-        // if (frameCount >= window->swapchain->imageCount-1){
-        //     deviceContext->vkResetFences(deviceContext->device, 1, &submitFences[nextCmdBufferIndex]);
-        //     renderPool->resetCommandBuffer(cmdBuffer[nextCmdBufferIndex], VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
-        // }
         if( frameCount > 0){
             deviceContext->vkResetFences(deviceContext->device, 1, &submitFences[prevCmdBufferIndex]);
             renderPool->resetCommandBuffer(cmdBuffer[prevCmdBufferIndex], VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
@@ -555,18 +553,15 @@ int main(int argc, char **argv){
             while((event = xcb_poll_for_event(window->windowInstance))){
                 // TODO: Handle more events, resize only for now
                 switch(event->response_type & ~0x80){
-                    case XCB_RESIZE_REQUEST:
+                    case XCB_CONFIGURE_NOTIFY:
                         {
-                            xcb_resize_request_event_t *resizeEvent = (xcb_resize_request_event_t*)event;
-                            uint32_t resizeWidth = resizeEvent->width;
-                            uint32_t resizeHeight = resizeEvent->height;
-                            std::cout << "New Width/Height: " << resizeWidth << "/" << resizeHeight << std::endl;
-                            // const uint32_t dimensions[] = {resizeEvent->width, resizeEvent->height};
-                            // xcb_configure_window(window->windowInstance,
-                            //     resizeEvent->window,
-                            //     XCB_CONFIG_WINDOW_WIDTH | XCB_CONFIG_WINDOW_HEIGHT,
-                            //     dimensions);
-                            window->swapchain->recreateSwapchain();
+                            xcb_configure_notify_event_t *configureNotifyEvent = (xcb_configure_notify_event_t*)event;
+                            uint32_t configureNotifyWidth = configureNotifyEvent->width;
+                            uint32_t configureNotifyHeight = configureNotifyEvent->height;
+                            if(configureNotifyWidth != window->swapchain->extent.width || configureNotifyHeight != window->swapchain->extent.height){
+                                std::cout << "New Width/Height: " << configureNotifyWidth << "/" << configureNotifyHeight << std::endl;
+                                window->swapchain->recreateSwapchain();
+                            }
                         }
                         break;
                     default:
@@ -575,6 +570,7 @@ int main(int argc, char **argv){
 
                 delete event;
             }
+
         #endif
     }
 
