@@ -10,11 +10,11 @@
 #include <glm/gtc/matrix_transform.hpp> // glm::translate, glm::rotate, glm::scale, glm::perspective
 #include <glm/gtc/constants.hpp> // glm::pi
 #include <glm/gtc/type_ptr.hpp>
-#include "vulkanDriverInstance.h"
-#include "vulkanBuffer.h"
-#include "vulkanRenderPass.h"
-#include "vulkanSwapchain.h"
-#include "vulkanPipelineState.h"
+#include "VulkanDriverInstance.h"
+#include "VulkanBuffer.h"
+#include "VulkanRenderPass.h"
+#include "VulkanSwapchain.h"
+#include "VulkanPipelineState.h"
 
 struct uniformLayoutStruct{
     glm::mat4 MVP;

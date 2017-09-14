@@ -1,10 +1,10 @@
 #include <iostream>
 #include <cassert>
-#include "vulkanDriverInstance.h"
-#include "vulkanBuffer.h"
-#include "vulkanRenderPass.h"
-#include "vulkanSwapchain.h"
-#include "vulkanPipelineState.h"
+#include "VulkanDriverInstance.h"
+#include "VulkanBuffer.h"
+#include "VulkanRenderPass.h"
+#include "VulkanSwapchain.h"
+#include "VulkanPipelineState.h"
 
 #if defined (_WIN32) || defined (_WIN64)
 #include "win32Window.h"

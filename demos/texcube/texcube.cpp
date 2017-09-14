@@ -14,11 +14,11 @@
     #define STB_IMAGE_IMPLEMENTATION
     #include <stb/stb_image.h>
 #endif
-#include "vulkanDriverInstance.h"
-#include "vulkanBuffer.h"
-#include "vulkanRenderPass.h"
-#include "vulkanSwapchain.h"
-#include "vulkanPipelineState.h"
+#include "VulkanDriverInstance.h"
+#include "VulkanBuffer.h"
+#include "VulkanRenderPass.h"
+#include "VulkanSwapchain.h"
+#include "VulkanPipelineState.h"
 
 struct uniformLayoutStruct{
     glm::mat4 MVP;
