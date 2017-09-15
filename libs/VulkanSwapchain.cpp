@@ -39,8 +39,6 @@ VulkanSwapchain::VulkanSwapchain(VulkanDriverInstance * __instance, VulkanDevice
 VulkanSwapchain::~VulkanSwapchain(){
     cleanupSwapchain();
     deviceContext->vkDestroySwapchainKHR(deviceContext->device, swapchain, nullptr);
-
-    // xcb_disconnect(connection);
 }
 
 void VulkanSwapchain::cleanupSwapchain(){
@@ -48,54 +46,26 @@ void VulkanSwapchain::cleanupSwapchain(){
     swapchainImages.clear();
 
     for (auto depthImage : swapchainDepthImages){
-        if (depthImage != VK_NULL_HANDLE){
-            deviceContext->vkDestroyImage(deviceContext->device, depthImage, nullptr);
+        if (depthImage != nullptr){
+            delete depthImage;
         }
     }
     swapchainDepthImages.clear();
 
-    for (auto depthImageMemory : swapchainDepthImageMemory){
-        if (depthImageMemory != VK_NULL_HANDLE){
-            deviceContext->vkFreeMemory(deviceContext->device, depthImageMemory, nullptr);
-        }
-    }
-    swapchainDepthImageMemory.clear();
-
     for (auto multisampleImage : swapchainMultisampleImages){
-        if (multisampleImage != VK_NULL_HANDLE){
-            deviceContext->vkDestroyImage(deviceContext->device, multisampleImage, nullptr);
+        if (multisampleImage != nullptr){
+            delete multisampleImage;
         }
     }
     swapchainMultisampleImages.clear();
 
-    for (auto multisampleImageMemory : swapchainMultisampleImageMemory){
-        if (multisampleImageMemory != VK_NULL_HANDLE){
-            deviceContext->vkFreeMemory(deviceContext->device, multisampleImageMemory, nullptr);
+    // Destroy images
+    for (auto image : swapchainImages){
+        if (image != nullptr){
+            delete image;
         }
     }
-    swapchainMultisampleImageMemory.clear();
-
-    // Destroy image views
-    for (auto imageView : swapchainImageViews){
-        if (imageView != VK_NULL_HANDLE){
-            deviceContext->vkDestroyImageView(deviceContext->device, imageView, nullptr);
-        }
-    }
-    swapchainImageViews.clear();
-
-    for (auto depthImageView : swapchainDepthImageViews){
-        if (depthImageView != VK_NULL_HANDLE){
-            deviceContext->vkDestroyImageView(deviceContext->device, depthImageView, nullptr);
-        }
-    }
-    swapchainDepthImageViews.clear();
-
-    for (auto multisampleImageView : swapchainMultisampleImageViews){
-        if (multisampleImageView != VK_NULL_HANDLE){
-            deviceContext->vkDestroyImageView(deviceContext->device, multisampleImageView, nullptr);
-        }
-    }
-    swapchainMultisampleImageViews.clear();
+    swapchainImages.clear();
 
     // Destroy framebuffers
     for (auto framebuffer : swapchainFramebuffers){
@@ -297,7 +267,7 @@ void VulkanSwapchain::initializeSwapchain(VkSurfaceKHR swapchainSurface, VkSwapc
     swapchainCreateInfo.imageUsage              = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
     swapchainCreateInfo.imageSharingMode        = imageSharingMode;
     swapchainCreateInfo.queueFamilyIndexCount   = queueFamilyIndices.size();
-    swapchainCreateInfo.pQueueFamilyIndices     = &queueFamilyIndices.at(0);
+    swapchainCreateInfo.pQueueFamilyIndices     = (imageSharingMode == VK_SHARING_MODE_CONCURRENT) ? &queueFamilyIndices.at(0) : nullptr;
     swapchainCreateInfo.preTransform            = preTransform;
     swapchainCreateInfo.compositeAlpha          = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
     swapchainCreateInfo.presentMode             = presentModes[presentModeIndex];
@@ -314,111 +284,74 @@ void VulkanSwapchain::initializeSwapchain(VkSurfaceKHR swapchainSurface, VkSwapc
     // Get Swapchain images (access-controlled)
     assert(deviceContext->vkGetSwapchainImagesKHR(deviceContext->device, swapchain, &imageCount, nullptr) == VK_SUCCESS);
     assert(imageCount != 0);
-    swapchainImages = std::vector<VkImage>(imageCount);
-    assert(deviceContext->vkGetSwapchainImagesKHR(deviceContext->device, swapchain, &imageCount, &swapchainImages[0]) == VK_SUCCESS);
+    std::vector<VkImage> swapchainPrimitiveImages(imageCount);
+    assert(deviceContext->vkGetSwapchainImagesKHR(deviceContext->device, swapchain, &imageCount, &swapchainPrimitiveImages[0]) == VK_SUCCESS);
 
-    swapchainDepthImages        = std::vector<VkImage>(imageCount);
-    swapchainDepthImageViews    = std::vector<VkImageView>(imageCount);
-    swapchainImageViews         = std::vector<VkImageView>(imageCount);
+    swapchainImages             = std::vector<VulkanImage*>(imageCount);
+    swapchainDepthImages        = std::vector<VulkanImage*>(imageCount);
     swapchainFramebuffers       = std::vector<VkFramebuffer>(imageCount);
 
     if(sampleCount != VK_SAMPLE_COUNT_1_BIT){
-        swapchainMultisampleImages          = std::vector<VkImage>(imageCount);
-        swapchainMultisampleImageViews      = std::vector<VkImageView>(imageCount);
+        swapchainMultisampleImages   = std::vector<VulkanImage*>(imageCount);
     }
 
     for(uint32_t index = 0; index < imageCount; index++){
+        // Create image wrapper for WSI image
+        swapchainImages[index] = new VulkanImage(deviceContext,
+                                                swapchainPrimitiveImages[index],
+                                                VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+                                                VK_IMAGE_TYPE_2D,
+                                                swapchainFormat,
+                                                {extent.width, extent.height, 1},
+                                                0,
+                                                VK_SAMPLE_COUNT_1_BIT,
+                                                VK_IMAGE_TILING_OPTIMAL,
+                                                1,
+                                                1,
+                                                imageSharingMode,
+                                                queueFamilyIndices.size(),
+                                                (imageSharingMode == VK_SHARING_MODE_CONCURRENT) ? &queueFamilyIndices.at(0) : nullptr,
+                                                VK_IMAGE_LAYOUT_UNDEFINED);
+        swapchainImages[index]->createImageView(VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_ASPECT_COLOR_BIT, 0, 0);
         std::cout << "Swapchain Image #" << index << ": " << swapchainImages[index] << std::endl;
 
-        // Image View creation
-        VkImageViewCreateInfo imageCreateInfo;
-        imageCreateInfo.sType               = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-        imageCreateInfo.pNext               = nullptr;
-        imageCreateInfo.flags               = 0;
-        imageCreateInfo.image               = swapchainImages[index];
-        imageCreateInfo.viewType            = VK_IMAGE_VIEW_TYPE_2D;
-        imageCreateInfo.format              = swapchainFormat;
-        imageCreateInfo.components          = {VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY };
-        imageCreateInfo.subresourceRange    = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
-
-        assert(deviceContext->vkCreateImageView(deviceContext->device, &imageCreateInfo, nullptr, &swapchainImageViews[index]) == VK_SUCCESS);
-
         // Depth buffer images must be created
-        VkImageCreateInfo depthCreateInfo;
-        depthCreateInfo.sType                   = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-        depthCreateInfo.pNext                   = nullptr;
-        depthCreateInfo.flags                   = 0;
-        depthCreateInfo.imageType               = VK_IMAGE_TYPE_2D;
-        depthCreateInfo.format                  = swapchainDepthFormat;
-        depthCreateInfo.extent.width            = extent.width;
-        depthCreateInfo.extent.height           = extent.height;
-        depthCreateInfo.extent.depth            = 1;
-        depthCreateInfo.mipLevels               = 1;
-        depthCreateInfo.arrayLayers             = 1;
-        depthCreateInfo.samples                 = sampleCount;
-        depthCreateInfo.tiling                  = VK_IMAGE_TILING_OPTIMAL;
-        depthCreateInfo.usage                   = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-        depthCreateInfo.sharingMode             = imageSharingMode;
-        depthCreateInfo.queueFamilyIndexCount   = queueFamilyIndices.size();
-        depthCreateInfo.pQueueFamilyIndices     = &queueFamilyIndices.at(0);
-        depthCreateInfo.initialLayout           = VK_IMAGE_LAYOUT_UNDEFINED;
-
-        assert(deviceContext->vkCreateImage(deviceContext->device, &depthCreateInfo, nullptr, &swapchainDepthImages[index]) == VK_SUCCESS);
-        swapchainDepthImageMemory.push_back(deviceContext->allocateAndBindMemory(swapchainDepthImages[index], false));
-
-        // Depth Image View creation
-        VkImageViewCreateInfo depthViewCreateInfo;
-        depthViewCreateInfo.sType               = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-        depthViewCreateInfo.pNext               = nullptr;
-        depthViewCreateInfo.flags               = 0;
-        depthViewCreateInfo.image               = swapchainDepthImages[index];
-        depthViewCreateInfo.viewType            = VK_IMAGE_VIEW_TYPE_2D;
-        depthViewCreateInfo.format              = swapchainDepthFormat;
-        depthViewCreateInfo.components          = {VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY };
-        depthViewCreateInfo.subresourceRange    = {VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1};
-
-        assert(deviceContext->vkCreateImageView(deviceContext->device, &depthViewCreateInfo, nullptr, &swapchainDepthImageViews[index]) == VK_SUCCESS);
+        swapchainDepthImages[index] = new VulkanImage(deviceContext,
+                                                       VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+                                                       VK_IMAGE_TYPE_2D,
+                                                       swapchainDepthFormat,
+                                                       {extent.width, extent.height, 1},
+                                                       0,
+                                                       sampleCount,
+                                                       VK_IMAGE_TILING_OPTIMAL,
+                                                       1,
+                                                       1,
+                                                       imageSharingMode,
+                                                       queueFamilyIndices.size(),
+                                                       (imageSharingMode == VK_SHARING_MODE_CONCURRENT) ? &queueFamilyIndices.at(0) : nullptr,
+                                                       VK_IMAGE_LAYOUT_UNDEFINED);
+        swapchainDepthImages[index]->createImageView(VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_ASPECT_DEPTH_BIT, 0, 0);
+        std::cout << "Swapchain Depth Image #" << index << ": " << swapchainDepthImages[index]->imageHandle << std::endl;
 
         // Create multisampled color and depth buffers
         if(sampleCount != VK_SAMPLE_COUNT_1_BIT){
-
             // Create multisampled color buffer
-            VkImageCreateInfo multisampleCreateInfo;
-            multisampleCreateInfo.sType                   = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-            multisampleCreateInfo.pNext                   = nullptr;
-            multisampleCreateInfo.flags                   = 0;
-            multisampleCreateInfo.imageType               = VK_IMAGE_TYPE_2D;
-            multisampleCreateInfo.format                  = swapchainFormat;
-            multisampleCreateInfo.extent.width            = extent.width;
-            multisampleCreateInfo.extent.height           = extent.height;
-            multisampleCreateInfo.extent.depth            = 1;
-            multisampleCreateInfo.mipLevels               = 1;
-            multisampleCreateInfo.arrayLayers             = 1;
-            multisampleCreateInfo.samples                 = sampleCount;
-            multisampleCreateInfo.tiling                  = VK_IMAGE_TILING_OPTIMAL;
-            multisampleCreateInfo.usage                   = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-            multisampleCreateInfo.sharingMode             = imageSharingMode;
-            multisampleCreateInfo.queueFamilyIndexCount   = queueFamilyIndices.size();
-            multisampleCreateInfo.pQueueFamilyIndices     = &queueFamilyIndices.at(0);
-            multisampleCreateInfo.initialLayout           = VK_IMAGE_LAYOUT_UNDEFINED;
-
-            assert(deviceContext->vkCreateImage(deviceContext->device, &multisampleCreateInfo, nullptr, &swapchainMultisampleImages[index]) == VK_SUCCESS);
-            swapchainMultisampleImageMemory.push_back(deviceContext->allocateAndBindMemory(swapchainMultisampleImages[index], false));
-
-            std::cout << "Multisampled Swapchain Image #" << index << ": " << swapchainMultisampleImages[index] << std::endl;
-
-            // Multisampled Image View creation
-            VkImageViewCreateInfo multisampleViewCreateInfo;
-            multisampleViewCreateInfo.sType               = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-            multisampleViewCreateInfo.pNext               = nullptr;
-            multisampleViewCreateInfo.flags               = 0;
-            multisampleViewCreateInfo.image               = swapchainMultisampleImages[index];
-            multisampleViewCreateInfo.viewType            = VK_IMAGE_VIEW_TYPE_2D;
-            multisampleViewCreateInfo.format              = swapchainFormat;
-            multisampleViewCreateInfo.components          = {VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY };
-            multisampleViewCreateInfo.subresourceRange    = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
-
-            assert(deviceContext->vkCreateImageView(deviceContext->device, &multisampleViewCreateInfo, nullptr, &swapchainMultisampleImageViews[index]) == VK_SUCCESS);
+            swapchainMultisampleImages[index] = new VulkanImage(deviceContext,
+                                                               VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+                                                               VK_IMAGE_TYPE_2D,
+                                                               swapchainFormat,
+                                                               {extent.width, extent.height, 1},
+                                                               0,
+                                                               sampleCount,
+                                                               VK_IMAGE_TILING_OPTIMAL,
+                                                               1,
+                                                               1,
+                                                               imageSharingMode,
+                                                               queueFamilyIndices.size(),
+                                                               (imageSharingMode == VK_SHARING_MODE_CONCURRENT) ? &queueFamilyIndices.at(0) : nullptr,
+                                                               VK_IMAGE_LAYOUT_UNDEFINED);
+            swapchainMultisampleImages[index]->createImageView(VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_ASPECT_COLOR_BIT, 0, 0);
+            std::cout << "Multisampled Swapchain Image #" << index << ": " << swapchainMultisampleImages[index]->imageHandle << std::endl;
         }
     }
 
@@ -440,7 +373,8 @@ VkImage VulkanSwapchain::getCurrentImage(){
     if ( swapchainImages.size() == 0){
         return VK_NULL_HANDLE;
     }else{
-        return swapchainImages[swapchainImageIndex];
+        return swapchainImages[swapchainImageIndex]->imageHandle;
+        // return swapchainImages[swapchainImageIndex];
     }
 }
 
@@ -710,14 +644,14 @@ void VulkanSwapchain::setupFramebuffers(VkCommandBuffer cmdBuffer){
         std::cout << "Swapchain Image #" << index << ": " << swapchainImages[index] << std::endl;
 
         // Set layout before creating image view
-        setImageLayout(cmdBuffer, swapchainImages[index], VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+        setImageLayout(cmdBuffer, swapchainImages[index]->imageHandle, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
         // Framebuffer creation
         std::vector<VkImageView> attachments;
-        attachments.push_back(swapchainImageViews[index]);
-        attachments.push_back(swapchainDepthImageViews[index]);
+        attachments.push_back(swapchainImages[index]->imageViewHandle);
+        attachments.push_back(swapchainDepthImages[index]->imageViewHandle);
         if(sampleCount != VK_SAMPLE_COUNT_1_BIT){
-            attachments.push_back(swapchainMultisampleImageViews[index]);
+            attachments.push_back(swapchainMultisampleImages[index]->imageViewHandle);
         }
 
         VkFramebufferCreateInfo framebufferCreateInfo;

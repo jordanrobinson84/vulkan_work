@@ -42,16 +42,11 @@ public:
     std::vector<VkPresentModeKHR>       presentModes;
     uint32_t                            imageCount;
     VkSampleCountFlagBits               sampleCount;
-    std::vector<VkImage>                swapchainDepthImages;
-    std::vector<VkDeviceMemory>         swapchainDepthImageMemory;
-    std::vector<VkImage>                swapchainImages;
-    std::vector<VkImageView>            swapchainDepthImageViews;
-    std::vector<VkImageView>            swapchainImageViews;
+    std::vector<VulkanImage*>           swapchainDepthImages;
+    std::vector<VulkanImage*>           swapchainImages;
 
     // Multisampled resources
-    std::vector<VkImage>                swapchainMultisampleImages;
-    std::vector<VkDeviceMemory>         swapchainMultisampleImageMemory;
-    std::vector<VkImageView>            swapchainMultisampleImageViews;
+    std::vector<VulkanImage*>           swapchainMultisampleImages;
 
     std::vector<VkFramebuffer>          swapchainFramebuffers;
     std::vector<uint32_t>               queueFamilyIndices;

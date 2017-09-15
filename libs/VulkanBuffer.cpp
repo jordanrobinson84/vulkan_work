@@ -774,7 +774,7 @@ void VulkanImage::copyImageToBuffer(VkCommandBuffer commandBuffer, VulkanBuffer&
     assert(imageHandle != VK_NULL_HANDLE);
     assert(destBuffer.bufferHandle != VK_NULL_HANDLE);
 
-    const VkImageCreateInfo cImageCreateInfo =  getImageCreateInfo();
+    const VkImageCreateInfo &cImageCreateInfo =  getImageCreateInfo();
 
     VkBufferImageCopy defaultImageCopy;
     defaultImageCopy.bufferOffset                      = 0;
