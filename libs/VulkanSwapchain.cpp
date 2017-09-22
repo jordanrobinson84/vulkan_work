@@ -31,6 +31,7 @@ VulkanSwapchain::VulkanSwapchain(VulkanDriverInstance * __instance, VulkanDevice
         }
         queueFamilyIndex++;
     }
+    assert(queueFamilyIndices.size() > 0);
 
     // Initialize
     initializeSwapchain(surface, VK_NULL_HANDLE);
@@ -142,14 +143,15 @@ void VulkanSwapchain::createRenderpass(){
     subpassDescription.pResolveAttachments      = nullptr; // pResolveAttachments
     subpassDescription.pDepthStencilAttachment  = &attachmentReferences[1]; // pDepthStencilAttachment
     if(sampleCount != VK_SAMPLE_COUNT_1_BIT){
+        // When multisampling, the multisample attachment is used for rendering and is resolved in the non-multisampled attachment later
         subpassDescription.pColorAttachments        = &attachmentReferences[2]; // pColorAttachments
         subpassDescription.pResolveAttachments      = &attachmentReferences[0];
     }
     subpassDescription.preserveAttachmentCount  = 0; // preserveAttachmentCount
     subpassDescription.pPreserveAttachments     = nullptr; // pPreserveAttachments
 
-    std::vector<VkSubpassDescription> subpasses ={subpassDescription};
-    std::vector<VkSubpassDependency> dependencies = {};
+    std::vector<VkSubpassDescription> subpasses     = {subpassDescription};
+    std::vector<VkSubpassDependency> dependencies   = {};
 
     uint32_t attachmentCount        = attachments.size();
     uint32_t subpassCount           = subpasses.size();
@@ -175,7 +177,6 @@ void VulkanSwapchain::createRenderpass(){
     assert(deviceContext->vkCreateRenderPass(deviceContext->device, &renderPassCreateInfo, nullptr, &renderPass) == VK_SUCCESS);
 
     // Blend states
-    attachmentBlendState;
     attachmentBlendState.blendEnable            = VK_FALSE;
     attachmentBlendState.srcColorBlendFactor    = VK_BLEND_FACTOR_ONE;
     attachmentBlendState.dstColorBlendFactor    = VK_BLEND_FACTOR_ZERO;
@@ -185,7 +186,6 @@ void VulkanSwapchain::createRenderpass(){
     attachmentBlendState.alphaBlendOp           = VK_BLEND_OP_ADD;
     attachmentBlendState.colorWriteMask         = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
 
-    blendState;
     blendState.sType                = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
     blendState.pNext                = nullptr;
     blendState.flags                = 0; //MBZ
@@ -374,7 +374,6 @@ VkImage VulkanSwapchain::getCurrentImage(){
         return VK_NULL_HANDLE;
     }else{
         return swapchainImages[swapchainImageIndex]->imageHandle;
-        // return swapchainImages[swapchainImageIndex];
     }
 }
 
@@ -426,7 +425,7 @@ void VulkanSwapchain::present(VkQueue presentationQueue){
                 errorString = "VK_ERROR_SURFACE_LOST_KHR";
                 break;   
             default:
-                errorString += acquireResult;     
+                errorString += acquireResult;
             }
         throw std::runtime_error("Failed to acquire swapchain image!" + errorString);
     }
@@ -534,100 +533,10 @@ void VulkanSwapchain::recreateSwapchain(){
     pipelineState->setViewportState(extent, scissorRect);
 }
 
-void VulkanSwapchain::setImageLayout(VkCommandBuffer commandBuffer, VkImage image, VkImageAspectFlags aspects, VkImageLayout oldLayout, VkImageLayout newLayout){
-    VkImageMemoryBarrier imageBarrier;
-    imageBarrier.sType                  = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    imageBarrier.pNext                  = nullptr;
-    imageBarrier.srcAccessMask          = 0;
-    imageBarrier.dstAccessMask          = 0;
-    imageBarrier.oldLayout              = oldLayout;
-    imageBarrier.newLayout              = newLayout;
-    imageBarrier.srcQueueFamilyIndex    = VK_QUEUE_FAMILY_IGNORED;
-    imageBarrier.dstQueueFamilyIndex    = VK_QUEUE_FAMILY_IGNORED;
-    imageBarrier.image                  = image;
-
-    imageBarrier.subresourceRange.baseArrayLayer    = 0;
-    imageBarrier.subresourceRange.aspectMask        = aspects;
-    imageBarrier.subresourceRange.baseMipLevel      = 0;
-    imageBarrier.subresourceRange.levelCount        = 1;
-    imageBarrier.subresourceRange.layerCount        = 1;
-
-    VkPipelineStageFlags srcStageMask = (VkPipelineStageFlags)0;
-    VkPipelineStageFlags dstStageMask = (VkPipelineStageFlags)0;
-
-    switch (oldLayout) {
-        case VK_IMAGE_LAYOUT_PREINITIALIZED:
-            imageBarrier.srcAccessMask =
-            VK_ACCESS_HOST_WRITE_BIT | VK_ACCESS_TRANSFER_WRITE_BIT;
-            srcStageMask = VK_PIPELINE_STAGE_HOST_BIT;
-            break;
-        case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
-            imageBarrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-            srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-            break;
-        case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
-            imageBarrier.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-            srcStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
-            break;
-        case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
-            imageBarrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-            srcStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
-            break;
-        case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
-            imageBarrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
-            srcStageMask = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT |
-                           VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT |
-                           VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT |
-                           VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT |
-                           VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT |
-                           VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
-            break;
-        default:
-            break;
+void VulkanSwapchain::setImageLayout(VkCommandBuffer commandBuffer, VkImageLayout oldLayout, VkImageLayout newLayout){
+    if ( swapchainImages.size() != 0){
+        swapchainImages[swapchainImageIndex]->setImageLayout(commandBuffer, oldLayout, newLayout);
     }
-
-    switch (newLayout) {
-        case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
-            imageBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-            dstStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
-            break;
-        case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
-            imageBarrier.srcAccessMask |= VK_ACCESS_TRANSFER_READ_BIT;
-            imageBarrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-            srcStageMask |= VK_PIPELINE_STAGE_TRANSFER_BIT;
-            dstStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
-            break;
-        case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
-            imageBarrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-            imageBarrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-            dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-            srcStageMask |= VK_PIPELINE_STAGE_TRANSFER_BIT;
-            break;
-        case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
-            imageBarrier.dstAccessMask |=
-                VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-            dstStageMask |= (VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT);
-            break;
-        case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
-            imageBarrier.srcAccessMask =
-                VK_ACCESS_HOST_WRITE_BIT | VK_ACCESS_TRANSFER_WRITE_BIT;
-            srcStageMask = VK_PIPELINE_STAGE_HOST_BIT;
-            imageBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-            dstStageMask = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT |
-                           VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT |
-                           VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT |
-                           VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT |
-                           VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT |
-                           VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
-            break;
-        default:
-            break;
-    }
-
-    srcStageMask = (srcStageMask == 0) ? VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT : srcStageMask;
-    dstStageMask = (dstStageMask == 0) ? VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT : dstStageMask;
-
-    deviceContext->vkCmdPipelineBarrier(commandBuffer, srcStageMask, dstStageMask, 0, 0, nullptr, 0, nullptr, 1, &imageBarrier);
 }
 
 void VulkanSwapchain::setPipelineState(VulkanPipelineState *vps){
@@ -641,10 +550,10 @@ void VulkanSwapchain::setupFramebuffers(VkCommandBuffer cmdBuffer){
     swapchainFramebuffers = std::vector<VkFramebuffer>(imageCount);
 
     for(uint32_t index = 0; index < imageCount; index++){
-        std::cout << "Swapchain Image #" << index << ": " << swapchainImages[index] << std::endl;
+        std::cout << "Swapchain Image #" << index << ": " << swapchainImages[index]->imageHandle << std::endl;
 
         // Set layout before creating image view
-        setImageLayout(cmdBuffer, swapchainImages[index]->imageHandle, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+        swapchainImages[index]->setImageLayout(cmdBuffer, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
         // Framebuffer creation
         std::vector<VkImageView> attachments;

@@ -85,11 +85,15 @@ void VulkanPipelineState::addDescriptorSetLayoutBindings(uint32_t set, const std
         mapEntry = descriptorSetLayoutBindings.at(set);
     }catch(std::out_of_range oor){
         // Add new map entry
+        std::cout << "Descriptor Set Layout Binding for Set " << set << " does not exist, creating a new one" << std::endl;
         mapEntry = std::vector<VkDescriptorSetLayoutBinding>();
+        descriptorSetLayoutBindings.emplace(set, mapEntry);
     }
+    std::cout << "Descriptor Set Layout Binding for Set " << set << " has size " << descriptorSetLayoutBindings.at(set).size() << std::endl;
     std::cout << "Adding " << bindings.size() << " bindings" << std::endl;
-    mapEntry.insert(mapEntry.begin(), bindings.begin(), bindings.end());
-    descriptorSetLayoutBindings.emplace(set, mapEntry);
+    for(auto binding : bindings){
+        descriptorSetLayoutBindings.at(set).push_back(binding);
+    }
 }
 
 void VulkanPipelineState::addShaderStage(std::string shaderFileName, VkShaderStageFlagBits stage, const std::string entryPointName, VkSpecializationInfo * specialization){
@@ -158,11 +162,15 @@ std::vector<VkDescriptorSet>& VulkanPipelineState::generateDescriptorSets(VkDesc
         std::map<uint32_t, VkDescriptorSetLayoutBinding> duplicateMap;
         for(VkDescriptorSetLayoutBinding layoutBinding : mapEntry){
             // Check if duplicate
+            std::cout << "Descriptor Set Binding: ( Set " << pair.first << ", Binding " << layoutBinding.binding << " )" << std::endl;
+            std::cout << "   Descriptor Type:"                  << descriptorTypeToString(layoutBinding.descriptorType)     << std::endl;
+            std::cout << "   Descriptor Count:"                 << layoutBinding.descriptorCount    << std::endl;
+            std::cout << "   Descriptor Stage Flags:"           << layoutBinding.stageFlags         << std::endl;
+            // std::cout << "   Descriptor Immutable Samplers:"    << (layoutBinding.pImmutableSamplers == nullptr ? "None" : ()layoutBinding.pImmutableSamplers) << std::endl; TODO
             std::map<uint32_t, VkDescriptorSetLayoutBinding>::iterator existingKeyIterator;
             existingKeyIterator = duplicateMap.find(layoutBinding.binding);
             if(existingKeyIterator != duplicateMap.end()){
                 duplicateMap.emplace(layoutBinding.binding, layoutBinding);
-                std::cout << "Descriptor Set Binding: ( Set " << pair.first << ", Binding " << layoutBinding.binding << " )" << std::endl;
             }else{
                 std::runtime_error("Duplicate layout binding found!");
             }
@@ -189,7 +197,8 @@ std::vector<VkDescriptorSet>& VulkanPipelineState::generateDescriptorSets(VkDesc
             descriptorSetInfo.pSetLayouts           = &setLayout;
 
             VkDescriptorSet descriptorSet;
-            assert(deviceContext->vkAllocateDescriptorSets(deviceContext->device, &descriptorSetInfo, &descriptorSet) == VK_SUCCESS);
+            VkResult result = deviceContext->vkAllocateDescriptorSets(deviceContext->device, &descriptorSetInfo, &descriptorSet);
+            assert(result == VK_SUCCESS);
             // Add map entry if it doesn't exist
             try{
                 std::vector<VkDescriptorSet>& entry = descriptorSets.at(descriptorPool);

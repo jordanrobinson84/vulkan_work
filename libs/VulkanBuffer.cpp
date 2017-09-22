@@ -685,11 +685,11 @@ void VulkanImage::loadImageData(const void * data, const uint32_t dataSize, VkEx
 
     VkImageLayout oldLayout = layout;
     deviceContext->vkBeginCommandBuffer(copyCommandBuffer[0], &cbBeginInfo);
-    setImageLayout(copyCommandBuffer[0], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    setImageLayout(copyCommandBuffer[0], layout, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
     deviceContext->vkCmdCopyBufferToImage(copyCommandBuffer[0], imageBuffer.bufferHandle, imageHandle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &imageCopy);
     // Can't transition to undefined or pre-initialized layouts
     if(oldLayout != VK_IMAGE_LAYOUT_PREINITIALIZED && oldLayout != VK_IMAGE_LAYOUT_UNDEFINED){
-        setImageLayout(copyCommandBuffer[0], oldLayout);
+        setImageLayout(copyCommandBuffer[0], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, oldLayout);
     }
     deviceContext->vkEndCommandBuffer(copyCommandBuffer[0]);
 
@@ -757,16 +757,16 @@ void VulkanImage::blitImage(VkCommandBuffer commandBuffer, VulkanImage& destImag
 
     VkImageLayout srcOldLayout  = layout;
     VkImageLayout destOldLayout = destImage.layout;
-    setImageLayout(commandBuffer, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
-    destImage.setImageLayout(commandBuffer, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    setImageLayout(commandBuffer, srcOldLayout, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+    destImage.setImageLayout(commandBuffer, destOldLayout, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
     deviceContext->vkCmdBlitImage(commandBuffer, imageHandle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, destImage.imageHandle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, blitPtr, filter);
     // Can't transition to undefined or pre-initialized layouts
     if(srcOldLayout != VK_IMAGE_LAYOUT_PREINITIALIZED && srcOldLayout != VK_IMAGE_LAYOUT_UNDEFINED){
-        setImageLayout(commandBuffer, srcOldLayout);
+        setImageLayout(commandBuffer, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, srcOldLayout);
     }
      // Can't transition to undefined or pre-initialized layouts
     if(destOldLayout != VK_IMAGE_LAYOUT_PREINITIALIZED && destOldLayout != VK_IMAGE_LAYOUT_UNDEFINED){
-        destImage.setImageLayout(commandBuffer, destOldLayout);
+        destImage.setImageLayout(commandBuffer,VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, destOldLayout);
     }
 }
 
@@ -790,11 +790,11 @@ void VulkanImage::copyImageToBuffer(VkCommandBuffer commandBuffer, VulkanBuffer&
 
     // Standard image copy
     VkImageLayout oldLayout = layout;
-    setImageLayout(commandBuffer, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+    setImageLayout(commandBuffer, oldLayout, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
     deviceContext->vkCmdCopyImageToBuffer(commandBuffer, imageHandle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, destBuffer.bufferHandle, 1, imageCopyPtr);
     // Can't transition to undefined or pre-initialized layouts
     if(oldLayout != VK_IMAGE_LAYOUT_PREINITIALIZED && oldLayout != VK_IMAGE_LAYOUT_UNDEFINED){
-        setImageLayout(commandBuffer, oldLayout);
+        setImageLayout(commandBuffer, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, oldLayout);
     }
 }
 
@@ -964,7 +964,7 @@ void VulkanImage::saveImage(const std::string& imageFileName){
     delete copyCommandPool;
 }
 
-void VulkanImage::setImageLayout(VkCommandBuffer commandBuffer, VkImageLayout newLayout){
+void VulkanImage::setImageLayout(VkCommandBuffer commandBuffer, VkImageLayout oldLayout, VkImageLayout newLayout){
     assert(imageViewHandle != VK_NULL_HANDLE);
 
     VkImageMemoryBarrier imageBarrier;
@@ -972,7 +972,7 @@ void VulkanImage::setImageLayout(VkCommandBuffer commandBuffer, VkImageLayout ne
     imageBarrier.pNext                  = nullptr;
     imageBarrier.srcAccessMask          = 0;
     imageBarrier.dstAccessMask          = 0;
-    imageBarrier.oldLayout              = layout;
+    imageBarrier.oldLayout              = oldLayout;
     imageBarrier.newLayout              = newLayout;
     imageBarrier.srcQueueFamilyIndex    = VK_QUEUE_FAMILY_IGNORED;
     imageBarrier.dstQueueFamilyIndex    = VK_QUEUE_FAMILY_IGNORED;
@@ -982,7 +982,7 @@ void VulkanImage::setImageLayout(VkCommandBuffer commandBuffer, VkImageLayout ne
     VkPipelineStageFlags srcStageMask = (VkPipelineStageFlags)0;
     VkPipelineStageFlags dstStageMask = (VkPipelineStageFlags)0;
 
-    switch (layout) {
+    switch (oldLayout) {
         case VK_IMAGE_LAYOUT_PREINITIALIZED:
             imageBarrier.srcAccessMask =
             VK_ACCESS_HOST_WRITE_BIT | VK_ACCESS_TRANSFER_WRITE_BIT;
@@ -1055,5 +1055,6 @@ void VulkanImage::setImageLayout(VkCommandBuffer commandBuffer, VkImageLayout ne
     dstStageMask = (dstStageMask == 0) ? VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT : dstStageMask;
 
     deviceContext->vkCmdPipelineBarrier(commandBuffer, srcStageMask, dstStageMask, 0, 0, nullptr, 0, nullptr, 1, &imageBarrier);
+    // std::cout << "Transitioning Image Layout for Image Handle {0x" << std::hex << imageHandle << "} from " << oldLayout << " to " << newLayout << std::endl;
     layout = newLayout;
 }

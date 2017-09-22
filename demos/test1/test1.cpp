@@ -105,7 +105,7 @@ int main(){
 
     // Do rendering
     VulkanCommandPool * renderPool      = deviceContext->getCommandPool(VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT, window->swapchain->queueFamilyIndices[0]);
-    VkCommandBuffer * cmdBuffer         = renderPool->getCommandBuffers(VK_COMMAND_BUFFER_LEVEL_PRIMARY, window->swapchain->imageCount);
+    VkCommandBuffer * cmdBuffers         = renderPool->getCommandBuffers(VK_COMMAND_BUFFER_LEVEL_PRIMARY, window->swapchain->imageCount);
 
     window->swapchain->createRenderpass();
 
@@ -144,15 +144,13 @@ int main(){
         assert(deviceContext->vkCreateFence(deviceContext->device, &submitFenceInfo, nullptr, &submitFences[i]) == VK_SUCCESS);
     }
 
-    assert( deviceContext->vkBeginCommandBuffer(cmdBuffer[0], &cmdBufferBeginInfo) == VK_SUCCESS);
-    // window->swapchain->setupFramebuffers(cmdBuffer[0]);
-    // window->swapchain->setImageLayout(cmdBuffer[0], window->swapchain->getCurrentImage(), VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL); 
+    assert( deviceContext->vkBeginCommandBuffer(cmdBuffers[0], &cmdBufferBeginInfo) == VK_SUCCESS);
 
     uint32_t frameCount = 0;
     VkQueue presentQueue;
     deviceContext->vkGetDeviceQueue(deviceContext->device, window->swapchain->queueFamilyIndices[0], 0, &presentQueue);
 
-    window->swapchain->setupFramebuffers(cmdBuffer[0]);
+    window->swapchain->setupFramebuffers(cmdBuffers[0]);
 
     while(true){
         int cmdBufferIndex = frameCount % window->swapchain->imageCount;
@@ -161,13 +159,13 @@ int main(){
         if(window->swapchain->dirtyFramebuffers){
             // Reset command buffers
             for(int i = 0; i < window->swapchain->imageCount; i++){
-                renderPool->resetCommandBuffer(cmdBuffer[i], VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
+                renderPool->resetCommandBuffer(cmdBuffers[i], VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
             }
 
             std::cout << "Recreating Framebuffers" << std::endl;
             assert(deviceContext->vkDeviceWaitIdle(deviceContext->device) == VK_SUCCESS);
-            assert( deviceContext->vkBeginCommandBuffer(cmdBuffer[cmdBufferIndex], &cmdBufferBeginInfo) == VK_SUCCESS);
-            window->swapchain->setupFramebuffers(cmdBuffer[cmdBufferIndex]);
+            assert( deviceContext->vkBeginCommandBuffer(cmdBuffers[cmdBufferIndex], &cmdBufferBeginInfo) == VK_SUCCESS);
+            window->swapchain->setupFramebuffers(cmdBuffers[cmdBufferIndex]);
         }
 
         // Begin the render pass
@@ -185,10 +183,10 @@ int main(){
         renderPassBegin.pClearValues    = &clearValues[0];
 
         deviceContext->vkQueueWaitIdle(presentQueue);
-        deviceContext->vkCmdBindPipeline(cmdBuffer[cmdBufferIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, vps.pipeline);
-        deviceContext->vkCmdBeginRenderPass(cmdBuffer[cmdBufferIndex], &renderPassBegin, VK_SUBPASS_CONTENTS_INLINE);
-        deviceContext->vkCmdBindVertexBuffers(cmdBuffer[cmdBufferIndex], 0, 1, &vertexBuffer.bufferHandle, &vertexOffset);
-        deviceContext->vkCmdDraw(cmdBuffer[cmdBufferIndex], 3, 1, 0, 0);
+        deviceContext->vkCmdBindPipeline(cmdBuffers[cmdBufferIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, vps.pipeline);
+        deviceContext->vkCmdBeginRenderPass(cmdBuffers[cmdBufferIndex], &renderPassBegin, VK_SUBPASS_CONTENTS_INLINE);
+        deviceContext->vkCmdBindVertexBuffers(cmdBuffers[cmdBufferIndex], 0, 1, &vertexBuffer.bufferHandle, &vertexOffset);
+        deviceContext->vkCmdDraw(cmdBuffers[cmdBufferIndex], 3, 1, 0, 0);
 
         // Dispatch
         /*VkQueue presentQueue;
@@ -201,14 +199,14 @@ int main(){
         presentSubmitInfo.pWaitSemaphores      = &window->swapchain->presentationSemaphore;
         presentSubmitInfo.pWaitDstStageMask    = stageFlags;
         presentSubmitInfo.commandBufferCount   = 1;
-        presentSubmitInfo.pCommandBuffers      = &cmdBuffer[cmdBufferIndex];
+        presentSubmitInfo.pCommandBuffers      = &cmdBuffers[cmdBufferIndex];
         presentSubmitInfo.signalSemaphoreCount = 1;
         presentSubmitInfo.pSignalSemaphores    = &window->swapchain->renderingDoneSemaphore;
 
         // End render pass
-        deviceContext->vkCmdEndRenderPass(cmdBuffer[cmdBufferIndex]);
-        window->swapchain->setImageLayout(cmdBuffer[cmdBufferIndex], window->swapchain->getCurrentImage(), VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
-        deviceContext->vkEndCommandBuffer(cmdBuffer[cmdBufferIndex]);
+        deviceContext->vkCmdEndRenderPass(cmdBuffers[cmdBufferIndex]);
+        window->swapchain->setImageLayout(cmdBuffers[cmdBufferIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+        deviceContext->vkEndCommandBuffer(cmdBuffers[cmdBufferIndex]);
         assert(deviceContext->vkQueueSubmit(presentQueue, 1, &presentSubmitInfo, submitFences[cmdBufferIndex]) == VK_SUCCESS);
         // assert(deviceContext->vkQueueSubmit(presentQueue, 1, &presentSubmitInfo, VK_NULL_HANDLE) == VK_SUCCESS);
 
@@ -222,10 +220,10 @@ int main(){
         // deviceContext->vkResetFences(deviceContext->device, 1, &submitFences[nextCmdBufferIndex]);
         if (frameCount >= window->swapchain->imageCount-1){
             deviceContext->vkResetFences(deviceContext->device, 1, &submitFences[nextCmdBufferIndex]);
-            renderPool->resetCommandBuffer(cmdBuffer[nextCmdBufferIndex], VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
+            renderPool->resetCommandBuffer(cmdBuffers[nextCmdBufferIndex], VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
         }
         frameCount = (frameCount + 1) % (std::numeric_limits<uint32_t>::max)();
-        assert( deviceContext->vkBeginCommandBuffer(cmdBuffer[nextCmdBufferIndex], &cmdBufferBeginInfo) == VK_SUCCESS);
+        assert( deviceContext->vkBeginCommandBuffer(cmdBuffers[nextCmdBufferIndex], &cmdBufferBeginInfo) == VK_SUCCESS);
 
         // std::cout << "Frame #" << frameCount << std::endl;
 
@@ -242,7 +240,7 @@ int main(){
     // Wait
     // std::cin.get();
     assert(deviceContext->vkDeviceWaitIdle(deviceContext->device) == VK_SUCCESS);
-    renderPool->freeCommandBuffers(window->swapchain->imageCount, &cmdBuffer);
+    renderPool->freeCommandBuffers(window->swapchain->imageCount, &cmdBuffers);
     delete renderPool;
 
     return 0;

@@ -79,7 +79,7 @@ public:
     const VkImageCreateInfo& getImageCreateInfo(){return imageCreateInfo;};
     void loadImageData(const void * data, const uint32_t dataSize, VkExtent3D copyExtent, VkImageSubresourceLayers copySubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1}, VkOffset3D copyOffset = {0, 0, 0});
     void saveImage(const std::string& imageFileName);
-    void setImageLayout(VkCommandBuffer commandBuffer, VkImageLayout newLayout);
+    void setImageLayout(VkCommandBuffer commandBuffer, VkImageLayout oldLayout, VkImageLayout newLayout);
 
     VulkanDevice *              deviceContext;
     VkImage                     imageHandle;

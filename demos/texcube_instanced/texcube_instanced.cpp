@@ -21,8 +21,8 @@
 #include "VulkanPipelineState.h"
 
 struct uniformLayoutStruct{
-    glm::mat4 MVP;
-    glm::mat4 Normal;
+    glm::mat4 MVP[8];
+    glm::mat4 Normal[8];
 };
 
 struct Vertex{
@@ -112,7 +112,16 @@ int main(int argc, char **argv){
     // Create Model-View-Projection matrix
     glm::mat4 Projection    = glm::perspective(glm::pi<float>() * 0.25f, 1.0f, 0.1f, 100.f);
     glm::mat4 View          = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    glm::mat4 Model         = glm::scale(glm::mat4(), glm::vec3(0.5f));
+    // glm::mat4 Model         = glm::scale(glm::mat4(), glm::vec3(0.5f));
+    glm::mat4 Model         = glm::mat4();
+    glm::mat4 subModels[8];
+    for(int i = 0; i < 8; i++){
+        float x = ((i & 1) == 0) ? -1.50f : 1.50f;
+        float y = ((i & 2) == 0) ? -1.50f : 1.50f;
+        float z = ((i & 4) == 0) ? -1.50f : 1.50f;
+        subModels[i] = glm::translate(glm::scale(glm::mat4(), glm::vec3(0.25f)), glm::vec3(x, y, z));
+        // subModels[i] = glm::translate(glm::mat4(), glm::vec3(x, y, z));
+    }
 
     // Set buffer data
     uint32_t numVertices = 24;
@@ -205,9 +214,12 @@ int main(int argc, char **argv){
     cubeBufferData[23].texcoords = glm::vec2(1.0f, 1.0f);
 
     uniformLayoutStruct uniformStruct;
-    uniformStruct.MVP = Projection * View * Model;
-    uniformStruct.Normal = glm::transpose(glm::inverse(View * Model));
+    for(int i = 0; i < 8; i++){
+        uniformStruct.MVP[i] = Projection * View * Model * subModels[i];
+        uniformStruct.Normal[i] = glm::transpose(glm::inverse(View * Model * subModels[i]));
+    }
     VulkanBuffer matrixBuffer(deviceContext, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, &uniformStruct, sizeof(uniformStruct), true);
+    // matrixBuffer.copyHostData(&uniformStruct[0], 0, sizeof(uniformStruct)*8);
 
     // Create pipeline state
     VulkanPipelineState vps(deviceContext);
@@ -223,9 +235,9 @@ int main(int argc, char **argv){
     Window * window = nullptr;
 
 #if defined (_WIN32) || defined (_WIN64)
-    window = new Win32Window(windowWidth, windowHeight, &instance, deviceContext, instance.physicalDevices[0], "Win32 Vulkan - Textured Cube", sampleCountFlag);
+    window = new Win32Window(windowWidth, windowHeight, &instance, deviceContext, instance.physicalDevices[0], "Win32 Vulkan - Textured Cube Instanced", sampleCountFlag);
 #elif defined (__linux__)
-    window = new XcbWindow(windowWidth, windowHeight, &instance, deviceContext, instance.physicalDevices[0], "Linux XCB Vulkan - Textured Cube", sampleCountFlag);
+    window = new XcbWindow(windowWidth, windowHeight, &instance, deviceContext, instance.physicalDevices[0], "Linux XCB Vulkan - Textured Cube Instanced", sampleCountFlag);
 #endif
 
     // Load image data
@@ -271,8 +283,13 @@ int main(int argc, char **argv){
     samplerPoolSize.type            = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     samplerPoolSize.descriptorCount = 1;
 
-    // Generate descriptor
-    VkDescriptorPool * samplerPool = deviceContext->getDescriptorPool({samplerPoolSize});
+    // Add matrix uniform
+    VkDescriptorPoolSize uniformPoolSize;
+    uniformPoolSize.type            = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    uniformPoolSize.descriptorCount = 1;
+
+    // Generate sampler descriptor
+    VkDescriptorPool * descriptorPool = deviceContext->getDescriptorPool({samplerPoolSize, uniformPoolSize});
     VkDescriptorSetLayoutBinding samplerLayoutBinding;
     samplerLayoutBinding.binding            = 0;
     samplerLayoutBinding.descriptorType     = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -280,18 +297,35 @@ int main(int argc, char **argv){
     samplerLayoutBinding.stageFlags         = VK_SHADER_STAGE_FRAGMENT_BIT;
     samplerLayoutBinding.pImmutableSamplers = nullptr;
     vps.addDescriptorSetLayoutBindings(0, {samplerLayoutBinding});
-    std::vector<VkDescriptorSet> samplerDescriptorVector = vps.generateDescriptorSets(*samplerPool);
 
-    // Write descriptor
+    // Generate matrix descriptor
+    VkDescriptorSetLayoutBinding uniformLayoutBinding;
+    uniformLayoutBinding.binding            = 1;
+    uniformLayoutBinding.descriptorType     = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    uniformLayoutBinding.descriptorCount    = 1;
+    uniformLayoutBinding.stageFlags         = VK_SHADER_STAGE_VERTEX_BIT;
+    uniformLayoutBinding.pImmutableSamplers = nullptr;
+    vps.addDescriptorSetLayoutBindings(0, {uniformLayoutBinding});
+    std::vector<VkDescriptorSet> descriptorVector = vps.generateDescriptorSets(*descriptorPool);
+
+    // Write descriptors
     VkDescriptorImageInfo samplerImageInfo;
     samplerImageInfo.sampler        = sampler;
     samplerImageInfo.imageView      = cubeImage.imageViewHandle;
     samplerImageInfo.imageLayout    = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
+    std::vector<VkDescriptorBufferInfo> uniformBufferDescriptorsInfo;
+    VkDescriptorBufferInfo uniformBufferInfo;
+    uniformBufferInfo.buffer        = matrixBuffer.bufferHandle;
+    uniformBufferInfo.offset        = 0;
+    uniformBufferInfo.range         = sizeof(uniformLayoutStruct);
+    uniformBufferDescriptorsInfo.push_back(uniformBufferInfo);
+
+    // Sampler descriptor (set = 0, binding = 0)
     VkWriteDescriptorSet samplerDescriptorWrite;
     samplerDescriptorWrite.sType            = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     samplerDescriptorWrite.pNext            = nullptr;
-    samplerDescriptorWrite.dstSet           =  samplerDescriptorVector[0];
+    samplerDescriptorWrite.dstSet           = descriptorVector[0];
     samplerDescriptorWrite.dstBinding       = 0;
     samplerDescriptorWrite.dstArrayElement  = 0;
     samplerDescriptorWrite.descriptorCount  = 1;
@@ -301,11 +335,27 @@ int main(int argc, char **argv){
     samplerDescriptorWrite.pTexelBufferView = nullptr;
     deviceContext->vkUpdateDescriptorSets(deviceContext->device, 1, &samplerDescriptorWrite, 0, nullptr);
 
+    // Uniform descriptor (set = 0, binding = 1); AOS requires 1 descriptor per struct, SOA only needs 1
+    VkWriteDescriptorSet uniformDescriptorWrite;
+    uniformDescriptorWrite.sType            = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    uniformDescriptorWrite.pNext            = nullptr;
+    uniformDescriptorWrite.dstSet           = descriptorVector[0];
+    uniformDescriptorWrite.dstBinding       = 1;
+    uniformDescriptorWrite.dstArrayElement  = 0;
+    uniformDescriptorWrite.descriptorCount  = uniformBufferDescriptorsInfo.size();
+    uniformDescriptorWrite.descriptorType   = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    uniformDescriptorWrite.pImageInfo       = nullptr;
+    uniformDescriptorWrite.pBufferInfo      = &uniformBufferDescriptorsInfo[0];
+    uniformDescriptorWrite.pTexelBufferView = nullptr;
+    deviceContext->vkUpdateDescriptorSets(deviceContext->device, 1, &uniformDescriptorWrite, 0, nullptr);
+
+    // Vertex input binding to interpret the vertex buffer data
     VkVertexInputBindingDescription vertexBindingDescription;
     vertexBindingDescription.binding    = 0;
     vertexBindingDescription.stride     = sizeof(Vertex);
     vertexBindingDescription.inputRate  = VK_VERTEX_INPUT_RATE_VERTEX;
 
+    // Above binding has three attributes (Position, Normal, Texcoords)
     VkVertexInputAttributeDescription positionInputDescription;
     positionInputDescription.binding    = 0;
     positionInputDescription.format     = VK_FORMAT_R32G32B32_SFLOAT;
@@ -313,21 +363,22 @@ int main(int argc, char **argv){
     positionInputDescription.offset     = 0;
 
     VkVertexInputAttributeDescription normalInputDescription;
-    normalInputDescription.binding   = 0;
-    normalInputDescription.format    = VK_FORMAT_R32G32B32_SFLOAT;
-    normalInputDescription.location  = 1;
-    normalInputDescription.offset    = sizeof(glm::vec3);
+    normalInputDescription.binding      = 0;
+    normalInputDescription.format       = VK_FORMAT_R32G32B32_SFLOAT;
+    normalInputDescription.location     = 1;
+    normalInputDescription.offset       = sizeof(glm::vec3);
 
     VkVertexInputAttributeDescription texCoordBindingDescription;
-    texCoordBindingDescription.binding   = 0;
-    texCoordBindingDescription.format    = VK_FORMAT_R32G32_SFLOAT;
-    texCoordBindingDescription.location  = 2;
-    texCoordBindingDescription.offset    = 2 *sizeof(glm::vec3);
+    texCoordBindingDescription.binding  = 0;
+    texCoordBindingDescription.format   = VK_FORMAT_R32G32_SFLOAT;
+    texCoordBindingDescription.location = 2;
+    texCoordBindingDescription.offset   = 2 *sizeof(glm::vec3);
 
     std::vector<VkVertexInputBindingDescription> bindingDescriptions     = { vertexBindingDescription };
     std::vector<VkVertexInputAttributeDescription> attributeDescriptions = { positionInputDescription, normalInputDescription, texCoordBindingDescription };
     vps.setPrimitiveState(bindingDescriptions, attributeDescriptions, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
 
+    // Set scissor rect to 
     VkRect2D scissorRect = { { 0, 0 }, window->swapchain->extent };
     vps.setViewportState(window->swapchain->extent, scissorRect);
     window->swapchain->setPipelineState(&vps);
@@ -339,20 +390,16 @@ int main(int argc, char **argv){
     window->swapchain->createRenderpass();
 
     // Pipeline layout setup
-    VkPushConstantRange uboRange;
-    uboRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-    uboRange.offset     = 0;
-    uboRange.size       = sizeof(uniformStruct);
-
+    std::vector<VkDescriptorSetLayout> setLayouts = {vps.descriptorSetLayouts.at(0)};
     VkPipelineLayout layout;
     VkPipelineLayoutCreateInfo layoutInfo;
     layoutInfo.sType                    = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     layoutInfo.pNext                    = nullptr;
     layoutInfo.flags                    = 0;
-    layoutInfo.setLayoutCount           = 1;
-    layoutInfo.pSetLayouts              = &vps.descriptorSetLayouts.at(0);
-    layoutInfo.pushConstantRangeCount   = 1;
-    layoutInfo.pPushConstantRanges      = &uboRange;
+    layoutInfo.setLayoutCount           = setLayouts.size();
+    layoutInfo.pSetLayouts              = &setLayouts.at(0);
+    layoutInfo.pushConstantRangeCount   = 0;
+    layoutInfo.pPushConstantRanges      = nullptr;
     assert(deviceContext->vkCreatePipelineLayout(deviceContext->device, &layoutInfo, nullptr, &layout) == VK_SUCCESS);
     vps.pipelineInfo.layout = layout;
 
@@ -385,6 +432,7 @@ int main(int argc, char **argv){
     std::chrono::time_point<std::chrono::high_resolution_clock> start, end;
     start = std::chrono::high_resolution_clock::now();
     end = start;
+    std::srand(start.time_since_epoch().count());
     double accumulatedTime = 0.0;
     uint32_t frameCountStart = 0;
 
@@ -400,6 +448,7 @@ int main(int argc, char **argv){
             window->swapchain->setupFramebuffers(cmdBuffers[0]);
         }
 
+        // Framebuffer recreation requires a command buffer
         if(window->swapchain->dirtyFramebuffers){
             std::cout << "Recreating Framebuffers" << std::endl;
             assert(deviceContext->vkDeviceWaitIdle(deviceContext->device) == VK_SUCCESS);
@@ -436,9 +485,11 @@ int main(int argc, char **argv){
             float angle = (float)(glm::pi<double>() * ((double)ROTATION_RATE) * (delta / MILLISECONDS_TO_SECONDS));
 
             Model = glm::rotate(Model, angle, glm::vec3(0.0f, 0.4f, 1.0f));
-            uniformStruct.MVP = Projection * View * Model;
-            uniformStruct.Normal = glm::transpose(glm::inverse(View * Model));
-            // matrixBuffer.copyHostData(&uniformStruct, 0, sizeof(uniformStruct));
+            for(int i = 0; i < 8; i++){
+                uniformStruct.MVP[i] = Projection * View * Model * subModels[i];
+                uniformStruct.Normal[i] = glm::transpose(glm::inverse(View * Model * subModels[i]));
+            }
+            matrixBuffer.copyHostData(&uniformStruct, 0, sizeof(uniformStruct));
             start = end;
         }
 
@@ -462,15 +513,13 @@ int main(int argc, char **argv){
         renderPassBegin.pClearValues    = &clearValues[0];
 
         deviceContext->vkQueueWaitIdle(presentQueue);
-		// Bind Descriptor Sets
-		deviceContext->vkCmdBindDescriptorSets(cmdBuffers[cmdBufferIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, layout, 0, 1, &samplerDescriptorVector[0], 0, nullptr);
-        // Update Push Constants
-        // deviceContext->vkCmdPushConstants(cmdBuffers[cmdBufferIndex], layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(uniformStruct), &uniformStruct);
+        // Bind Descriptor Sets
+        deviceContext->vkCmdBindDescriptorSets(cmdBuffers[cmdBufferIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, layout, 0, 1, &descriptorVector[0], 0, nullptr);
         deviceContext->vkCmdBindPipeline(cmdBuffers[cmdBufferIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, vps.pipeline);
         deviceContext->vkCmdBeginRenderPass(cmdBuffers[cmdBufferIndex], &renderPassBegin, VK_SUBPASS_CONTENTS_INLINE);
         deviceContext->vkCmdBindVertexBuffers(cmdBuffers[cmdBufferIndex], 0, 1, &vertexBuffer.bufferHandle, &vertexOffset);
         deviceContext->vkCmdBindIndexBuffer(cmdBuffers[cmdBufferIndex], indexBuffer.bufferHandle, 0, VK_INDEX_TYPE_UINT16);
-        deviceContext->vkCmdDrawIndexed(cmdBuffers[cmdBufferIndex], numIndices, 1, 0, 0, 0);
+        deviceContext->vkCmdDrawIndexed(cmdBuffers[cmdBufferIndex], numIndices, 8, 0, 0, 0);
 
         // Dispatch
         const VkPipelineStageFlags stageFlags[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };

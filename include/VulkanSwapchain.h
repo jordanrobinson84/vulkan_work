@@ -24,7 +24,7 @@ public:
     void present(VkQueue presentationQueue);
     void querySwapchain();
     void recreateSwapchain();
-    void setImageLayout(VkCommandBuffer cmdBuffer, VkImage image, VkImageAspectFlags aspects, VkImageLayout oldLayout, VkImageLayout newLayout);
+    void setImageLayout(VkCommandBuffer cmdBuffer, VkImageLayout oldLayout, VkImageLayout newLayout);
     void setPipelineState(VulkanPipelineState *vps);
     void setupFramebuffers(VkCommandBuffer cmdBuffer);
     void setupMultisampling(VkSampleCountFlagBits __sampleCount);
